@@ -24,7 +24,8 @@
 std::string log_path;
 bool compile_only = false;
 bool wait_before_exit = false;
-bool use_hexagon_vm = false;
+bool enable_hvm = false;
+bool hvm_debug = false;
 
 int covscript_args(int args_size, const char *args[])
 {
@@ -49,8 +50,10 @@ int covscript_args(int args_size, const char *args[])
 				expect_log_path = 1;
 			else if (std::strcmp(args[index], "--import-path") == 0 && expect_import_path == 0)
 				expect_import_path = 1;
-			else if (std::strcmp(args[index], "--use-hexagon-vm") == 0 && !use_hexagon_vm)
-				use_hexagon_vm = true;
+			else if (std::strcmp(args[index], "--enable-hvm") == 0 && !enable_hvm)
+				enable_hvm = true;
+			else if (std::strcmp(args[index], "--hvm-debug") == 0 && !hvm_debug)
+				hvm_debug = true;
 			else
 				throw cs::fatal_error("argument syntax error.");
 		}
@@ -79,8 +82,8 @@ void covscript_main(int args_size, const char *args[])
 		instance.compile(path);
 
 		if (!compile_only) {
-			if(use_hexagon_vm) {
-				instance.run_in_hexagon_vm();
+			if(enable_hvm) {
+				instance.run_in_hexagon_vm(hvm_debug);
 			} else {
 				instance.interpret();
 			}

@@ -24,7 +24,6 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
-#include <iostream>
 #include <hexagon/ort.h>
 #include <hexagon/ort_assembly_writer.h>
 
@@ -229,7 +228,7 @@ namespace cs {
 			return *blocks.at(current);
 		}
 
-		hexagon::ort::Function build() {
+		hexagon::assembly_writer::FunctionWriter build() {
 			using namespace hexagon::assembly_writer;
 
 			auto& init_blk = *blocks[0];
@@ -242,9 +241,7 @@ namespace cs {
 				fwriter.Write(*blk);
 			}
 
-			std::cout << fwriter.ToJson() << std::endl;
-
-			return fwriter.Build();
+			return fwriter;
 		}
 
 		void terminate_current() {

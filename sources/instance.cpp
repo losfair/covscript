@@ -25,6 +25,7 @@
 #include <hexagon/ort.h>
 #include <hexagon/ort_assembly_writer.h>
 #include <vector>
+#include <iostream>
 
 namespace cs {
 	const std::string &statement_base::get_file_path() const noexcept
@@ -42,7 +43,7 @@ namespace cs {
 		return context->file_buff.at(line_num - 1);
 	}
 
-	void instance_type::run_in_hexagon_vm() {
+	void instance_type::run_in_hexagon_vm(bool debug) {
 		using namespace hexagon;
 		using namespace hexagon::assembly_writer;
 
@@ -52,7 +53,13 @@ namespace cs {
 		}
 		builder.get_current().Write(BytecodeOp("LoadNull"));
 		builder.get_current().Write(BytecodeOp("Return"));
-		auto f = builder.build();
+		auto fwriter = builder.build();
+
+		if(debug) {
+			std::cerr << fwriter.ToJson() << std::endl;
+		}
+
+		auto f = fwriter.Build();
 
 		ort::Runtime rt;
 		rt.AttachFunction("__entry", f);

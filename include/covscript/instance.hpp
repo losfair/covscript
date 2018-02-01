@@ -384,7 +384,7 @@ namespace cs {
 
 		void interpret();
 
-		void run_in_hexagon_vm();
+		void run_in_hexagon_vm(bool debug);
 	};
 
 // Repl
