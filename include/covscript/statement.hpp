@@ -20,6 +20,7 @@
 * Github: https://github.com/mikecovlee
 */
 #include <covscript/instance.hpp>
+#include <covscript/runtime.hpp>
 
 namespace cs {
 	class statement_expression final : public statement_base {
@@ -39,6 +40,8 @@ namespace cs {
 		virtual void run() override;
 
 		virtual void repl_run() override;
+
+		virtual void generate_code(function_builder& builder) override;
 	};
 
 	class statement_involve final : public statement_base {
@@ -72,6 +75,8 @@ namespace cs {
 		}
 
 		virtual void run() override;
+
+		virtual void generate_code(function_builder& builder) override;
 	};
 
 	class statement_break final : public statement_base {
@@ -151,6 +156,8 @@ namespace cs {
 		}
 
 		virtual void run() override;
+
+		virtual void generate_code(function_builder& builder) override;
 	};
 
 	class statement_ifelse final : public statement_base {
@@ -174,6 +181,8 @@ namespace cs {
 		}
 
 		virtual void run() override;
+
+		virtual void generate_code(function_builder& builder) override;
 	};
 
 	class statement_else final : public statement_base {
@@ -280,6 +289,8 @@ namespace cs {
 		}
 
 		virtual void run() override;
+
+		virtual void generate_code(function_builder& builder) override;
 	};
 
 	class statement_until final : public statement_base {

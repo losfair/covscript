@@ -20,6 +20,7 @@
 */
 #include <covscript/statement.hpp>
 #include <iostream>
+#include <hexagon/ort_assembly_writer.h>
 
 namespace cs {
 	var function::call(vector &args) const
@@ -89,6 +90,13 @@ namespace cs {
 		}
 	}
 
+	void statement_expression::generate_code(function_builder& builder) {
+		using namespace hexagon::assembly_writer;
+
+		context -> instance -> generate_code_from_expr(mTree.root(), builder);
+		builder.get_current().Write(BytecodeOp("Pop"));
+	}
+
 	void statement_involve::run()
 	{
 		var ns = context->instance->parse_expr(mTree.root());
@@ -101,6 +109,13 @@ namespace cs {
 	void statement_var::run()
 	{
 		context->instance->storage.add_var(mDvp.id, copy(context->instance->parse_expr(mDvp.expr.root())));
+	}
+
+	void statement_var::generate_code(function_builder& builder) {
+		using namespace hexagon::assembly_writer;
+
+		context -> instance -> generate_code_from_expr(mDvp.expr.root(), builder);
+		builder.get_current().Write(BytecodeOp("SetLocal", Operand::I64(builder.map_local(mDvp.id))));
 	}
 
 	void statement_break::run()
@@ -183,6 +198,34 @@ namespace cs {
 		}
 	}
 
+	void statement_if::generate_code(function_builder& builder) {
+		using namespace hexagon::assembly_writer;
+
+		context -> instance -> generate_code_from_expr(mTree.root(), builder);
+		auto& tBlock = builder.get_current();
+		builder.terminate_current();
+
+		int bodyBlockBeginId = builder.current_id();
+
+		for(auto& stmt : mBlock) {
+			stmt -> generate_code(builder);
+		}
+
+		auto& bodyBlockEnd = builder.get_current();
+		builder.terminate_current();
+
+		int endBlockId = builder.current_id();
+
+		tBlock.Write(BytecodeOp("CastToBool"))
+			.Write(BytecodeOp(
+				"ConditionalBranch",
+				Operand::I64(bodyBlockBeginId),
+				Operand::I64(endBlockId)
+			));
+
+		bodyBlockEnd.Write(BytecodeOp("Branch", Operand::I64(endBlockId)));
+	}
+
 	void statement_ifelse::run()
 	{
 		if (context->instance->parse_expr(mTree.root()).const_val<boolean>()) {
@@ -225,6 +268,44 @@ namespace cs {
 					break;
 			}
 		}
+	}
+
+	void statement_ifelse::generate_code(function_builder& builder) {
+		using namespace hexagon::assembly_writer;
+
+		context -> instance -> generate_code_from_expr(mTree.root(), builder);
+		auto& tBlock = builder.get_current();
+		builder.terminate_current();
+
+		int ifBlockBeginId = builder.current_id();
+
+		for(auto& stmt : mBlock) {
+			stmt -> generate_code(builder);
+		}
+
+		auto& ifBlockEnd = builder.get_current();
+		builder.terminate_current();
+
+		int elseBlockBeginId = builder.current_id();
+
+		for(auto& stmt : mElseBlock) {
+			stmt -> generate_code(builder);
+		}
+
+		auto& elseBlockEnd = builder.get_current();
+		builder.terminate_current();
+
+		int endBlockId = builder.current_id();
+
+		tBlock.Write(BytecodeOp("CastToBool"))
+			.Write(BytecodeOp(
+				"ConditionalBranch",
+				Operand::I64(ifBlockBeginId),
+				Operand::I64(elseBlockBeginId)
+			));
+
+		ifBlockEnd.Write(BytecodeOp("Branch", Operand::I64(endBlockId)));
+		elseBlockEnd.Write(BytecodeOp("Branch", Operand::I64(endBlockId)));
 	}
 
 	void statement_switch::run()
@@ -271,6 +352,42 @@ namespace cs {
 				}
 			}
 		}
+	}
+
+	void statement_while::generate_code(function_builder& builder) {
+		using namespace hexagon::assembly_writer;
+
+		auto& prevBlock = builder.get_current();
+		builder.terminate_current();
+
+		auto& checkBlockBegin = builder.get_current();
+		int checkBlockBeginId = builder.current_id();
+
+		context -> instance -> generate_code_from_expr(mTree.root(), builder);
+
+		auto& checkBlockEnd = builder.get_current();
+
+		prevBlock.Write(BytecodeOp("Branch", Operand::I64(checkBlockBeginId)));
+
+		builder.terminate_current();
+
+		int bodyBlockBeginId = builder.current_id();
+		for(auto& stmt : mBlock) {
+			stmt -> generate_code(builder);
+		}
+
+		auto& bodyBlockEnd = builder.get_current();
+		bodyBlockEnd.Write(BytecodeOp("Branch", Operand::I64(checkBlockBeginId)));
+		builder.terminate_current();
+
+		int endBlockId = builder.current_id();
+
+		checkBlockEnd.Write(BytecodeOp("CastToBool"))
+			.Write(BytecodeOp(
+				"ConditionalBranch",
+				Operand::I64(bodyBlockBeginId),
+				Operand::I64(endBlockId)
+			));
 	}
 
 	void statement_loop::run()

@@ -373,6 +373,180 @@ namespace cs {
 			throw syntax_error("Access non-array or string object.");
 	}
 
+	static void build_value_load(function_builder& builder, var& v) {
+		using namespace hexagon::assembly_writer;
+
+		if(v.type() == typeid(int) || v.type() == typeid(long) || v.type() == typeid(long long) || v.type() == typeid(number)) {
+			auto inner = v.to_integer();
+			builder.get_current().Write(BytecodeOp("LoadInt", Operand::I64(inner)));
+		} else if(v.type() == typeid(string)) {
+			auto inner = v.to_string();
+			builder.get_current().Write(BytecodeOp("LoadString", Operand::String(inner)));
+		} else {
+			throw internal_error(std::string("Unsupported value type: ") + v.get_type_name());
+		}
+	}
+
+	static int lvalue_to_id(const cov::tree<token_base *>::iterator &it, function_builder& builder) {
+		if (!it.usable())
+			throw internal_error("The expression tree is not available.");
+		token_base *token = it.data();
+
+		if(token -> get_type() != token_types::id) {
+			throw syntax_error("Lvalue must be an identifier");
+		}
+		return builder.map_local(static_cast<token_id *>(token)->get_id());
+	}
+
+	// This should push **exactly** one value onto the stack.
+	void runtime_type::generate_code_from_expr(const cov::tree<token_base *>::iterator &it, function_builder& builder) {
+		using namespace hexagon::assembly_writer;
+	
+		if (!it.usable())
+			throw internal_error("The expression tree is not available.");
+		token_base *token = it.data();
+		if (token == nullptr) {
+			builder.get_current().Write(BytecodeOp("LoadNull"));
+			return;
+		}
+
+		switch(token -> get_type()) {
+		case token_types::id:
+			builder.get_current().Write(BytecodeOp("GetLocal", Operand::I64(
+				builder.map_local(static_cast<token_id *>(token)->get_id())
+			)));
+			return;
+		case token_types::value:
+			build_value_load(builder, static_cast<token_value *>(token)->get_value());
+			return;
+		case token_types::expr:
+			generate_code_from_expr(static_cast<token_expr *>(token)->get_tree().root(), builder);
+			return;
+		case token_types::array:
+			throw internal_error("Not implemented: array");
+		case token_types::signal:
+			switch (static_cast<token_signal *>(token)->get_signal()) {
+				case signal_types::add_: {
+					generate_code_from_expr(it.right(), builder);
+					generate_code_from_expr(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("Add"));
+					break;
+				}
+				case signal_types::sub_: {
+					generate_code_from_expr(it.right(), builder);
+					generate_code_from_expr(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("Sub"));
+					break;
+				}
+				case signal_types::mul_: {
+					generate_code_from_expr(it.right(), builder);
+					generate_code_from_expr(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("Mul"));
+					break;
+				}
+				case signal_types::div_: {
+					generate_code_from_expr(it.right(), builder);
+					generate_code_from_expr(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("Div"));
+					break;
+				}
+				case signal_types::mod_: {
+					generate_code_from_expr(it.right(), builder);
+					generate_code_from_expr(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("Mod"));
+					break;
+				}
+				case signal_types::inc_: {
+					int id = lvalue_to_id(it.left(), builder);
+
+					builder.get_current()
+						.Write(BytecodeOp("LoadInt", Operand::I64(1)))
+						.Write(BytecodeOp("GetLocal", Operand::I64(id)))
+						.Write(BytecodeOp("IntAdd"))
+						.Write(BytecodeOp("Dup"))
+						.Write(BytecodeOp("SetLocal", Operand::I64(id)));
+					break;
+				}
+				case signal_types::dec_: {
+					int id = lvalue_to_id(it.left(), builder);
+
+					builder.get_current()
+						.Write(BytecodeOp("LoadInt", Operand::I64(1)))
+						.Write(BytecodeOp("GetLocal", Operand::I64(id)))
+						.Write(BytecodeOp("IntSub"))
+						.Write(BytecodeOp("Dup"))
+						.Write(BytecodeOp("SetLocal", Operand::I64(id)));
+					break;
+				}
+				case signal_types::asi_: {
+					generate_code_from_expr(it.right(), builder);
+					int id = lvalue_to_id(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("Dup"));
+					builder.get_current().Write(BytecodeOp("SetLocal", Operand::I64(id)));
+					break;
+				}
+				case signal_types::und_: {
+					generate_code_from_expr(it.right(), builder);
+					generate_code_from_expr(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("TestLt"));
+					break;
+				}
+				case signal_types::abo_: {
+					generate_code_from_expr(it.right(), builder);
+					generate_code_from_expr(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("TestGt"));
+					break;
+				}
+				case signal_types::ueq_: {
+					generate_code_from_expr(it.right(), builder);
+					generate_code_from_expr(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("TestLe"));
+					break;
+				}
+				case signal_types::aeq_: {
+					generate_code_from_expr(it.right(), builder);
+					generate_code_from_expr(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("TestGe"));
+					break;
+				}
+				case signal_types::neq_: {
+					generate_code_from_expr(it.right(), builder);
+					generate_code_from_expr(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("TestNe"));
+					break;
+				}
+				case signal_types::equ_: {
+					generate_code_from_expr(it.right(), builder);
+					generate_code_from_expr(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("TestEq"));
+					break;
+				}
+				case signal_types::and_: {
+					generate_code_from_expr(it.right(), builder);
+					generate_code_from_expr(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("And"));
+					break;
+				}
+				case signal_types::or_: {
+					generate_code_from_expr(it.right(), builder);
+					generate_code_from_expr(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("Or"));
+					break;
+				}
+				case signal_types::not_: {
+					generate_code_from_expr(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("Not"));
+					break;
+				}
+				default:
+					throw internal_error("Unrecognized signal.");
+			}
+			return;
+		default:
+			throw internal_error("Unrecognized expression.");
+		}
+	}
+
 	var runtime_type::parse_expr(const cov::tree<token_base *>::iterator &it)
 	{
 		if (!it.usable())

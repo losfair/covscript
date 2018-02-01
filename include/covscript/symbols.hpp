@@ -20,6 +20,7 @@
 * Github: https://github.com/mikecovlee
 */
 #include <covscript/core.hpp>
+#include <covscript/runtime.hpp>
 
 namespace cs {
 	enum class token_types {
@@ -438,6 +439,10 @@ namespace cs {
 		virtual statement_types get_type() const noexcept=0;
 
 		virtual void run()=0;
+
+		virtual void generate_code(function_builder& builder) {
+			throw internal_error("Code generation for the current statement type is not implemented");
+		}
 
 		virtual void repl_run()
 		{

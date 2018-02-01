@@ -14,6 +14,9 @@ set_target_properties(test-extension PROPERTIES OUTPUT_NAME my_ext)
 set_target_properties(test-extension PROPERTIES PREFIX "")
 set_target_properties(test-extension PROPERTIES SUFFIX ".cse")
 
+target_link_libraries(cs hexagon_bridge)
+target_link_libraries(cs_repl hexagon_bridge)
+
 if (UNIX OR APPLE)
     target_link_libraries(cs dl)
     target_link_libraries(cs_repl dl)

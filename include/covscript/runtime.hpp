@@ -20,6 +20,13 @@
 * Github: https://github.com/mikecovlee
 */
 #include <covscript/symbols.hpp>
+#include <vector>
+#include <memory>
+#include <unordered_map>
+#include <string>
+#include <iostream>
+#include <hexagon/ort.h>
+#include <hexagon/ort_assembly_writer.h>
 
 namespace cs {
 	class domain_manager {
@@ -200,6 +207,67 @@ namespace cs {
 		}
 	};
 
+	class function_builder {
+	public:
+		std::vector<std::unique_ptr<hexagon::assembly_writer::BasicBlockWriter>> blocks;
+		std::unordered_map<std::string, int> locals;
+		std::vector<std::string> locals_reverse;
+		int current;
+
+		function_builder(const function_builder& other) = delete;
+
+		function_builder() {
+			// Initializations
+			blocks.push_back(std::unique_ptr<hexagon::assembly_writer::BasicBlockWriter>(new hexagon::assembly_writer::BasicBlockWriter()));
+
+			// The first block for `real` code
+			blocks.push_back(std::unique_ptr<hexagon::assembly_writer::BasicBlockWriter>(new hexagon::assembly_writer::BasicBlockWriter()));
+			current = 1;
+		}
+
+		hexagon::assembly_writer::BasicBlockWriter& get_current() {
+			return *blocks.at(current);
+		}
+
+		hexagon::ort::Function build() {
+			using namespace hexagon::assembly_writer;
+
+			auto& init_blk = *blocks[0];
+			init_blk.Clear();
+			init_blk.Write(BytecodeOp("InitLocal", Operand::I64(locals_reverse.size())));
+			init_blk.Write(BytecodeOp("Branch", Operand::I64(1)));
+
+			hexagon::assembly_writer::FunctionWriter fwriter;
+			for(auto& blk : blocks) {
+				fwriter.Write(*blk);
+			}
+
+			std::cout << fwriter.ToJson() << std::endl;
+
+			return fwriter.Build();
+		}
+
+		void terminate_current() {
+			blocks.push_back(std::unique_ptr<hexagon::assembly_writer::BasicBlockWriter>(new hexagon::assembly_writer::BasicBlockWriter()));
+			current++;
+		}
+
+		int current_id() const {
+			return current;
+		}
+
+		int map_local(const std::string& name) {
+			if(locals.find(name) == locals.end()) {
+				int new_id = locals_reverse.size();
+				locals_reverse.push_back(name);
+				locals[name] = new_id;
+				return new_id;
+			} else {
+				return locals[name];
+			}
+		}
+	};
+
 	class runtime_type {
 	public:
 		domain_manager storage;
@@ -275,5 +343,7 @@ namespace cs {
 		var parse_access(var, const var &);
 
 		var parse_expr(const cov::tree<token_base *>::iterator &);
+
+		void generate_code_from_expr(const cov::tree<token_base *>::iterator &it, function_builder& builder);
 	};
 }

@@ -21,6 +21,10 @@
 #include <covscript/instance.hpp>
 #include <covscript/statement.hpp>
 #include <covscript/codegen.hpp>
+#include <covscript/runtime.hpp>
+#include <hexagon/ort.h>
+#include <hexagon/ort_assembly_writer.h>
+#include <vector>
 
 namespace cs {
 	const std::string &statement_base::get_file_path() const noexcept
@@ -36,6 +40,25 @@ namespace cs {
 	const std::string &statement_base::get_raw_code() const noexcept
 	{
 		return context->file_buff.at(line_num - 1);
+	}
+
+	void instance_type::run_in_hexagon_vm() {
+		using namespace hexagon;
+		using namespace hexagon::assembly_writer;
+
+		function_builder builder;
+		for(auto& stmt : statements) {
+			stmt -> generate_code(builder);
+		}
+		builder.get_current().Write(BytecodeOp("LoadNull"));
+		builder.get_current().Write(BytecodeOp("Return"));
+		auto f = builder.build();
+
+		ort::Runtime rt;
+		rt.AttachFunction("__entry", f);
+		auto entry = rt.GetStaticObject("__entry");
+
+		rt.Invoke(entry, std::vector<ort::Value>());
 	}
 
 	void instance_type::init_grammar()

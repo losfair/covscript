@@ -24,6 +24,7 @@
 std::string log_path;
 bool compile_only = false;
 bool wait_before_exit = false;
+bool use_hexagon_vm = false;
 
 int covscript_args(int args_size, const char *args[])
 {
@@ -48,6 +49,8 @@ int covscript_args(int args_size, const char *args[])
 				expect_log_path = 1;
 			else if (std::strcmp(args[index], "--import-path") == 0 && expect_import_path == 0)
 				expect_import_path = 1;
+			else if (std::strcmp(args[index], "--use-hexagon-vm") == 0 && !use_hexagon_vm)
+				use_hexagon_vm = true;
 			else
 				throw cs::fatal_error("argument syntax error.");
 		}
@@ -74,8 +77,14 @@ void covscript_main(int args_size, const char *args[])
 		cs::init_ext();
 		cs::instance_type instance;
 		instance.compile(path);
-		if (!compile_only)
-			instance.interpret();
+
+		if (!compile_only) {
+			if(use_hexagon_vm) {
+				instance.run_in_hexagon_vm();
+			} else {
+				instance.interpret();
+			}
+		}
 	}
 	else
 		throw cs::fatal_error("no input file.");

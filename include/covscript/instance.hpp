@@ -383,6 +383,8 @@ namespace cs {
 		void compile(const std::string &);
 
 		void interpret();
+
+		void run_in_hexagon_vm();
 	};
 
 // Repl
