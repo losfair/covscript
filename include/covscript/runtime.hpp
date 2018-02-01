@@ -211,6 +211,7 @@ namespace cs {
 		std::vector<std::unique_ptr<hexagon::assembly_writer::BasicBlockWriter>> blocks;
 		std::unordered_map<std::string, int> locals;
 		std::vector<std::string> locals_reverse;
+		std::vector<std::string> arg_names;
 		int current;
 
 		function_builder(const function_builder& other) = delete;
@@ -228,13 +229,34 @@ namespace cs {
 			return *blocks.at(current);
 		}
 
+		void clear_arguments() {
+			arg_names.clear();
+		}
+
+		void add_argument(const std::string& name) {
+			arg_names.push_back(name);
+		}
+
 		hexagon::assembly_writer::FunctionWriter build() {
 			using namespace hexagon::assembly_writer;
+
+			// ensure argument name mappings exist to feed InitLocal
+			// the correct value
+			for(auto& name : arg_names) {
+				map_local(name);
+			}
 
 			auto& init_blk = *blocks[0];
 			init_blk.Clear();
 			init_blk.Write(BytecodeOp("InitLocal", Operand::I64(locals_reverse.size())));
 			init_blk.Write(BytecodeOp("Branch", Operand::I64(1)));
+			for(int i = 0; i < arg_names.size(); i++) {
+				init_blk
+					.Write(BytecodeOp("GetArgument", Operand::I64(i)))
+					.Write(BytecodeOp("SetLocal", Operand::I64(
+						map_local(arg_names[i])
+					)));
+			}
 
 			hexagon::assembly_writer::FunctionWriter fwriter;
 			for(auto& blk : blocks) {
