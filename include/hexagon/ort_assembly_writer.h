@@ -135,7 +135,8 @@ namespace assembly_writer {
 
 	class FunctionWriter {
 	private:
-		std::vector<BasicBlockWriter> basic_blocks;
+        std::vector<BasicBlockWriter> basic_blocks;
+        std::function<void (std::vector<BasicBlockWriter>&)> user_translator;
 
 		// https://stackoverflow.com/questions/7724448/simple-json-string-escape-for-c/33799784#33799784
 		static std::string escape_json(const std::string& s) {
@@ -174,13 +175,25 @@ namespace assembly_writer {
 			return o.str();
 		}
 
-	public:
+    public:
+        FunctionWriter() {
+            user_translator = nullptr;
+        }
+
+        FunctionWriter(const std::function<void (std::vector<BasicBlockWriter>&)>& ut) {
+            user_translator = ut;
+        }
+
 		FunctionWriter& Write(const BasicBlockWriter& bb) {
             basic_blocks.push_back(bb.Clone());
             return *this;
         }
         
         ort::Function Build() {
+            if(user_translator != nullptr) {
+                user_translator(basic_blocks);
+            }
+
             std::string code = ToJson();
 
             return ort::Function::LoadVirtual(

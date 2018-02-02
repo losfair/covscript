@@ -237,6 +237,34 @@ namespace cs {
 			arg_names.push_back(name);
 		}
 
+		void transform_last_op_to_set() {
+			using namespace hexagon::assembly_writer;
+
+			auto& current = get_current();
+
+			if(current.opcodes.size() == 0) {
+				throw internal_error("No opcodes");
+			}
+
+			BytecodeOp& last = current.opcodes[current.opcodes.size() - 1];
+			if(last.name == "GetLocal") {
+				// original: ... a -> ... a [b] (Pushes the value onto stack)
+				// new: ... a -> ... (Moves the value on stack to local)
+				Operand local_id = last.operands.at(0);
+				last = BytecodeOp("SetLocal", local_id);
+			} else if(last.name == "GetArrayElement") {
+				// original: ... a id arr -> ... a [b]
+				// new: ... a id arr -> ...
+				last = BytecodeOp("SetArrayElement");
+			} else if(last.name == "GetField") {
+				// original: ... a key obj -> a [b]
+				// new: ... a key obj -> ...
+				last = BytecodeOp("SetField");
+			} else {
+				throw internal_error("Transformation not implemented");
+			}
+		}
+
 		hexagon::assembly_writer::FunctionWriter build() {
 			using namespace hexagon::assembly_writer;
 
@@ -258,7 +286,42 @@ namespace cs {
 					)));
 			}
 
-			hexagon::assembly_writer::FunctionWriter fwriter;
+			FunctionWriter fwriter([](
+				std::vector<BasicBlockWriter>& blocks
+			) {
+				for(auto& blk : blocks) {
+					std::vector<BytecodeOp> new_ops;
+					for(auto& op : blk.opcodes) {
+						if(op.name == "GetArrayElement") {
+							// pops: array, index
+							// pushes: element
+
+							new_ops.push_back(BytecodeOp("LoadString", Operand::String("__get__")));
+							new_ops.push_back(BytecodeOp("LoadNull"));
+
+							// Rotate: (array, method_name, this) => (method_name, this, array)
+							new_ops.push_back(BytecodeOp("Rotate3"));
+
+							new_ops.push_back(BytecodeOp("CallField", Operand::I64(1)));
+						} else if(op.name == "SetArrayElement") {
+							// pops: array, index, value
+							// pushes nothing
+
+							new_ops.push_back(BytecodeOp("LoadString", Operand::String("__set__")));
+							new_ops.push_back(BytecodeOp("LoadNull"));
+
+							// Rotate: (array, method_name, this) => (method_name, this, array)
+							new_ops.push_back(BytecodeOp("Rotate3"));
+
+							new_ops.push_back(BytecodeOp("CallField", Operand::I64(2)));
+							new_ops.push_back(BytecodeOp("Pop"));
+						} else {
+							new_ops.push_back(op);
+						}
+					}
+					blk.opcodes = new_ops;
+				}
+			});
 			for(auto& blk : blocks) {
 				fwriter.Write(*blk);
 			}
@@ -283,6 +346,15 @@ namespace cs {
 				return new_id;
 			} else {
 				return locals[name];
+			}
+		}
+
+		bool try_map_local(const std::string& name, int& out) {
+			if(locals.find(name) == locals.end()) {
+				return false;
+			} else {
+				out = locals[name];
+				return true;
 			}
 		}
 	};

@@ -373,6 +373,7 @@ namespace cs {
 			throw syntax_error("Access non-array or string object.");
 	}
 
+	// pushes exactly one value
 	static void build_value_load(function_builder& builder, var& v) {
 		using namespace hexagon::assembly_writer;
 
@@ -382,12 +383,39 @@ namespace cs {
 		} else if(v.type() == typeid(string)) {
 			auto inner = v.to_string();
 			builder.get_current().Write(BytecodeOp("LoadString", Operand::String(inner)));
+		} else if(v.type() == typeid(array)) {
+			builder.get_current()
+				.Write(BytecodeOp("LoadString", Operand::String("new_array")))
+				.Write(BytecodeOp("LoadNull"))
+				.Write(BytecodeOp("LoadString", Operand::String("__builtin")))
+				.Write(BytecodeOp("GetStatic"))
+				.Write(BytecodeOp("CallField", Operand::I64(0)))
+				.Write(BytecodeOp("Dup"));
+
+			for (var& elem : v.val<array>()) {
+				build_value_load(builder, elem);
+				builder.get_current()
+					.Write(BytecodeOp("Rotate2"))
+					.Write(BytecodeOp("LoadString", Operand::String("push")))
+					.Write(BytecodeOp("Rotate2"))
+					.Write(BytecodeOp("LoadNull"))
+					.Write(BytecodeOp("Rotate2"))
+					.Write(BytecodeOp("CallField", Operand::I64(1)))
+					.Write(BytecodeOp("Pop"));
+			}
 		} else {
 			throw internal_error(std::string("Unsupported value type: ") + v.get_type_name());
 		}
 	}
 
-	static int lvalue_to_id(const cov::tree<token_base *>::iterator &it, function_builder& builder) {
+	// pops exactly one value
+	static int build_value_store(const cov::tree<token_base *>::iterator& it, function_builder& builder) {
+		if (!it.usable()) {
+			throw internal_error("The expression tree is not available.");
+		}
+	}
+
+	static int lvalue_to_id(const cov::tree<token_base *>::iterator& it, function_builder& builder) {
 		if (!it.usable())
 			throw internal_error("The expression tree is not available.");
 		token_base *token = it.data();
@@ -423,7 +451,26 @@ namespace cs {
 			generate_code_from_expr(static_cast<token_expr *>(token)->get_tree().root(), builder);
 			return;
 		case token_types::array:
-			throw internal_error("Not implemented: array");
+			builder.get_current()
+				.Write(BytecodeOp("LoadString", Operand::String("new_array")))
+				.Write(BytecodeOp("LoadNull"))
+				.Write(BytecodeOp("LoadString", Operand::String("__builtin")))
+				.Write(BytecodeOp("GetStatic"))
+				.Write(BytecodeOp("CallField", Operand::I64(0)));
+
+			for (auto &tree:static_cast<token_array *>(token)->get_array()) {
+				builder.get_current().Write(BytecodeOp("Dup"));
+				generate_code_from_expr(tree.root(), builder);
+				builder.get_current()
+					.Write(BytecodeOp("Rotate2"))
+					.Write(BytecodeOp("LoadString", Operand::String("push")))
+					.Write(BytecodeOp("Rotate2"))
+					.Write(BytecodeOp("LoadNull"))
+					.Write(BytecodeOp("Rotate2"))
+					.Write(BytecodeOp("CallField", Operand::I64(1)))
+					.Write(BytecodeOp("Pop"));
+			}
+			return;
 		case token_types::signal:
 			switch (static_cast<token_signal *>(token)->get_signal()) {
 				case signal_types::add_: {
@@ -457,32 +504,39 @@ namespace cs {
 					break;
 				}
 				case signal_types::inc_: {
-					int id = lvalue_to_id(it.left(), builder);
+					builder.get_current()
+						.Write(BytecodeOp("LoadInt", Operand::I64(1)));
+
+					generate_code_from_expr(it.left(), builder);
 
 					builder.get_current()
-						.Write(BytecodeOp("LoadInt", Operand::I64(1)))
-						.Write(BytecodeOp("GetLocal", Operand::I64(id)))
 						.Write(BytecodeOp("IntAdd"))
-						.Write(BytecodeOp("Dup"))
-						.Write(BytecodeOp("SetLocal", Operand::I64(id)));
+						.Write(BytecodeOp("Dup"));
+
+					generate_code_from_expr(it.left(), builder);
+					builder.transform_last_op_to_set();
 					break;
 				}
 				case signal_types::dec_: {
-					int id = lvalue_to_id(it.left(), builder);
+					builder.get_current()
+						.Write(BytecodeOp("LoadInt", Operand::I64(1)));
+
+					generate_code_from_expr(it.left(), builder);
 
 					builder.get_current()
-						.Write(BytecodeOp("LoadInt", Operand::I64(1)))
-						.Write(BytecodeOp("GetLocal", Operand::I64(id)))
 						.Write(BytecodeOp("IntSub"))
-						.Write(BytecodeOp("Dup"))
-						.Write(BytecodeOp("SetLocal", Operand::I64(id)));
+						.Write(BytecodeOp("Dup"));
+
+					generate_code_from_expr(it.left(), builder);
+					builder.transform_last_op_to_set();
 					break;
 				}
 				case signal_types::asi_: {
 					generate_code_from_expr(it.right(), builder);
-					int id = lvalue_to_id(it.left(), builder);
 					builder.get_current().Write(BytecodeOp("Dup"));
-					builder.get_current().Write(BytecodeOp("SetLocal", Operand::I64(id)));
+
+					generate_code_from_expr(it.left(), builder);
+					builder.transform_last_op_to_set();
 					break;
 				}
 				case signal_types::und_: {
@@ -536,6 +590,26 @@ namespace cs {
 				case signal_types::not_: {
 					generate_code_from_expr(it.left(), builder);
 					builder.get_current().Write(BytecodeOp("Not"));
+					break;
+				}
+				case signal_types::access_: {
+					int id = lvalue_to_id(it.left(), builder);
+					generate_code_from_expr(it.right(), builder);
+					builder.get_current()
+						.Write(BytecodeOp("GetLocal", Operand::I64(id)))
+						.Write(BytecodeOp("GetArrayElement"));
+					break;
+				}
+				case signal_types::fcall_: {
+					token_base *args = it.right().data();
+					int n_args = static_cast<token_arglist *>(args)->get_arglist().size();
+
+					for (auto &tree : static_cast<token_arglist *>(args)->get_arglist()) {
+						generate_code_from_expr(tree.root(), builder);
+					}
+					builder.get_current().Write(BytecodeOp("LoadNull"));
+					generate_code_from_expr(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("Call", Operand::I64(n_args)));
 					break;
 				}
 				default:
