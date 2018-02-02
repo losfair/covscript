@@ -19,6 +19,7 @@
 * Github: https://github.com/mikecovlee
 */
 #include <covscript/runtime.hpp>
+#include <string>
 
 namespace cs {
 	var runtime_type::parse_add(const var &a, const var &b)
@@ -415,17 +416,6 @@ namespace cs {
 		}
 	}
 
-	static int lvalue_to_id(const cov::tree<token_base *>::iterator& it, function_builder& builder) {
-		if (!it.usable())
-			throw internal_error("The expression tree is not available.");
-		token_base *token = it.data();
-
-		if(token -> get_type() != token_types::id) {
-			throw syntax_error("Lvalue must be an identifier");
-		}
-		return builder.map_local(static_cast<token_id *>(token)->get_id());
-	}
-
 	// This should push **exactly** one value onto the stack.
 	void runtime_type::generate_code_from_expr(const cov::tree<token_base *>::iterator &it, function_builder& builder) {
 		using namespace hexagon::assembly_writer;
@@ -439,11 +429,18 @@ namespace cs {
 		}
 
 		switch(token -> get_type()) {
-		case token_types::id:
-			builder.get_current().Write(BytecodeOp("GetLocal", Operand::I64(
-				builder.map_local(static_cast<token_id *>(token)->get_id())
-			)));
+		case token_types::id: {
+			int local_id = -1;
+			bool found = builder.try_map_local(
+				static_cast<token_id *>(token)->get_id(),
+				local_id
+			);
+			if(!found) {
+				throw syntax_error("Use of variable before declaration");
+			}
+			builder.get_current().Write(BytecodeOp("GetLocal", Operand::I64(local_id)));
 			return;
+		}
 		case token_types::value:
 			build_value_load(builder, static_cast<token_value *>(token)->get_value());
 			return;
@@ -593,11 +590,21 @@ namespace cs {
 					break;
 				}
 				case signal_types::access_: {
-					int id = lvalue_to_id(it.left(), builder);
 					generate_code_from_expr(it.right(), builder);
-					builder.get_current()
-						.Write(BytecodeOp("GetLocal", Operand::I64(id)))
-						.Write(BytecodeOp("GetArrayElement"));
+					generate_code_from_expr(it.left(), builder);
+
+					builder.get_current().Write(BytecodeOp("GetArrayElement"));
+					break;
+				}
+				case signal_types::dot_: {
+					token_base *right_data = it.right().data();
+					std::string field_name = static_cast<token_id *>(right_data)->get_id();
+					builder.get_current().Write(BytecodeOp("LoadString", Operand::String(field_name)));
+
+					generate_code_from_expr(it.left(), builder);
+
+					builder.get_current().Write(BytecodeOp("GetField"));
+
 					break;
 				}
 				case signal_types::fcall_: {
