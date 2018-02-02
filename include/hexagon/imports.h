@@ -62,6 +62,9 @@ int hexagon_ort_executor_impl_run_callable(
 void hexagon_ort_function_destroy(
     HxOrtFunction f
 );
+void hexagon_ort_function_enable_optimization(
+    HxOrtFunction f
+);
 HxOrtFunction hexagon_ort_function_load_native(
     LocalHxOrtNativeFunction cb,
     LocalHxOrtNativeFunctionDestructor dtor, // nullable

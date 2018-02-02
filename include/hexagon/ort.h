@@ -92,6 +92,10 @@ public:
         }
     }
 
+    void EnableOptimization() {
+        hexagon_ort_function_enable_optimization(res);
+    }
+
     static Function LoadVirtual(
         const char *encoding,
         const unsigned char *code,
