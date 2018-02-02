@@ -404,6 +404,12 @@ namespace cs {
 					.Write(BytecodeOp("CallField", Operand::I64(1)))
 					.Write(BytecodeOp("Pop"));
 			}
+		} else if(v.type() == typeid(pointer)) {
+			pointer p = v.val<pointer>();
+			if(p.data.usable()) {
+				throw syntax_error("Only null pointers are supported");
+			}
+			builder.get_current().Write(BytecodeOp("LoadNull"));
 		} else {
 			throw internal_error(std::string("Unsupported value type: ") + v.get_type_name());
 		}
@@ -436,9 +442,13 @@ namespace cs {
 				local_id
 			);
 			if(!found) {
-				throw syntax_error("Use of variable before declaration");
+				builder.get_current()
+					.Write(BytecodeOp("LoadString", Operand::String(static_cast<token_id *>(token)->get_id())))
+					.Write(BytecodeOp("LoadThis"))
+					.Write(BytecodeOp("GetField"));
+			} else {
+				builder.get_current().Write(BytecodeOp("GetLocal", Operand::I64(local_id)));
 			}
-			builder.get_current().Write(BytecodeOp("GetLocal", Operand::I64(local_id)));
 			return;
 		}
 		case token_types::value:
@@ -614,9 +624,8 @@ namespace cs {
 					for (auto &tree : static_cast<token_arglist *>(args)->get_arglist()) {
 						generate_code_from_expr(tree.root(), builder);
 					}
-					builder.get_current().Write(BytecodeOp("LoadNull"));
 					generate_code_from_expr(it.left(), builder);
-					builder.get_current().Write(BytecodeOp("Call", Operand::I64(n_args)));
+					builder.complete_call(n_args);
 					break;
 				}
 				default:

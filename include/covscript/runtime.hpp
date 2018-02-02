@@ -237,6 +237,34 @@ namespace cs {
 			arg_names.push_back(name);
 		}
 
+		// expected stack state: ... args* target
+		void complete_call(int n_args) {
+			using namespace hexagon::assembly_writer;
+
+			auto& current = get_current();
+
+			if(current.opcodes.size() == 0) {
+				throw internal_error("No opcodes");
+			}
+
+			BytecodeOp& last = current.opcodes[current.opcodes.size() - 1];
+			if(last.name == "GetField") {
+				// original: ... key obj -> ... field
+				// expected: ... key this obj -> ... ret
+				last = BytecodeOp("LoadNull");
+
+				// last is NOT safe to use any more after this!
+				current
+					.Write(BytecodeOp("Rotate2"))
+					.Write(BytecodeOp("CallField", Operand::I64(n_args)));
+			} else {
+				current
+					.Write(BytecodeOp("LoadNull"))
+					.Write(BytecodeOp("Rotate2"))
+					.Write(BytecodeOp("Call", Operand::I64(n_args)));
+			}
+		}
+
 		void transform_last_op_to_set() {
 			using namespace hexagon::assembly_writer;
 

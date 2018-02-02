@@ -59,13 +59,36 @@ namespace cs {
 			std::cerr << fwriter.ToJson() << std::endl;
 		}
 
-		auto f = fwriter.Build();
+		auto entry_fn = fwriter.Build();
 
 		ort::Runtime rt;
-		rt.AttachFunction("__entry", f);
-		auto entry = rt.GetStaticObject("__entry");
+		rt.AttachFunction("__entry", entry_fn);
 
-		rt.Invoke(entry, std::vector<ort::Value>());
+		FunctionWriter igniter;
+		igniter.Write(
+			BasicBlockWriter()
+				.Write(BytecodeOp("LoadNull")) // no prototype
+				.Write(BytecodeOp("LoadString", Operand::String("new_dynamic")))
+				.Write(BytecodeOp("LoadNull"))
+				.Write(BytecodeOp("LoadString", Operand::String("__builtin")))
+				.Write(BytecodeOp("GetStatic"))
+				.Write(BytecodeOp("CallField", Operand::I64(1))) // the global environment
+				.Write(BytecodeOp("Dup"))
+				.Write(BytecodeOp("LoadString", Operand::String("__builtin")))
+				.Write(BytecodeOp("GetStatic"))
+				.Write(BytecodeOp("LoadString", Operand::String("builtin")))
+				.Write(BytecodeOp("Rotate3"))
+				.Write(BytecodeOp("SetField"))
+				.Write(BytecodeOp("LoadString", Operand::String("__entry")))
+				.Write(BytecodeOp("GetStatic"))
+				.Write(BytecodeOp("Call", Operand::I64(0)))
+				.Write(BytecodeOp("Return"))
+		);
+		auto igniter_fn = igniter.Build();
+		rt.AttachFunction("__igniter", igniter_fn);
+
+		ort::Value igniter_inst = rt.GetStaticObject("__igniter");
+		rt.Invoke(igniter_inst, std::vector<ort::Value>());
 	}
 
 	void instance_type::init_grammar()
