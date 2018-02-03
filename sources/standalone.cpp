@@ -78,15 +78,11 @@ void covscript_main(int args_size, const char *args[])
 			arg.emplace_back(cs::var::make_constant<cs::string>(args[index]));
 		system_ext.add_var("args", cs::var::make_constant<cs::array>(arg));
 		cs::init_ext();
-		cs::instance_type instance;
+		cs::instance_type instance(enable_hvm);
 		instance.compile(path);
 
 		if (!compile_only) {
-			if(enable_hvm) {
-				instance.run_in_hexagon_vm(hvm_debug);
-			} else {
-				instance.interpret();
-			}
+			instance.run(hvm_debug);
 		}
 	}
 	else

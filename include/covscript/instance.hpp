@@ -263,18 +263,23 @@ namespace cs {
 		// Initializations
 		void init_grammar();
 
-		void init_runtime();
+		void init_runtime_no_vm();
 
 	public:
 		// Context
 		context_t context;
 		ort::Runtime hvm_rt;
+		bool enable_hvm;
 
 		// Constructor and destructor
-		instance_type() : context(std::make_shared<context_type>(this))
+		instance_type(bool _enable_hvm = false) : context(std::make_shared<context_type>(this))
 		{
+			enable_hvm = _enable_hvm;
+
 			init_grammar();
-			init_runtime();
+			if(!enable_hvm) {
+				init_runtime_no_vm();
+			}
 		}
 
 		instance_type(const instance_type &) = delete;
@@ -382,6 +387,8 @@ namespace cs {
 
 		// Wrapped Method
 		void compile(const std::string &);
+
+		void run(bool debug);
 
 		void interpret();
 

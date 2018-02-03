@@ -93,8 +93,6 @@ namespace cs_impl {
                     return any::make_protect<cs::object_method>(*this, v, v.const_val<cs::callable>().is_constant()).to_hvm_value();
                 else
                     return v.to_hvm_value();
-                std::cerr << type().name() << std::endl;
-                throw cs::internal_error("GetField: Unsupported type");
             }
         } catch(const cs::lang_error& e) {
             std::cerr << e.what() << std::endl;

@@ -43,6 +43,14 @@ namespace cs {
 		return context->file_buff.at(line_num - 1);
 	}
 
+	void instance_type::run(bool debug) {
+		if(enable_hvm) {
+			run_in_hexagon_vm(debug);
+		} else {
+			interpret();
+		}
+	}
+
 	void instance_type::run_in_hexagon_vm(bool debug) {
 		using namespace hexagon;
 		using namespace hexagon::assembly_writer;

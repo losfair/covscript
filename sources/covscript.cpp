@@ -89,7 +89,7 @@ namespace cs {
 		math_cs_ext::init();
 	}
 
-	void instance_type::init_runtime()
+	void instance_type::init_runtime_no_vm()
 	{
 		// Context
 		storage.add_buildin_var("context", var::make_constant<context_t>(context));
@@ -121,8 +121,8 @@ namespace cs {
 		// Add extensions to storage
 		storage.add_buildin_var("exception", var::make_protect<extension_t>(except_ext_shared));
 		storage.add_buildin_var("iostream", var::make_protect<extension_t>(make_shared_extension(iostream_ext)));
-		//storage.add_buildin_var("system", var::make_protect<extension_t>(make_shared_extension(system_ext)));
-		//storage.add_buildin_var("runtime", var::make_protect<extension_t>(make_shared_extension(runtime_ext)));
+		storage.add_buildin_var("system", var::make_protect<extension_t>(make_shared_extension(system_ext)));
+		storage.add_buildin_var("runtime", var::make_protect<extension_t>(make_shared_extension(runtime_ext)));
 		storage.add_buildin_var("math", var::make_protect<extension_t>(make_shared_extension(math_ext)));
 	}
 }
