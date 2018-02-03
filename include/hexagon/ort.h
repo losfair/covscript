@@ -10,6 +10,15 @@
 namespace hexagon {
 namespace ort {
 
+enum class ValueType {
+    Unknown,
+    Bool,
+    Float,
+    Int,
+    Null,
+    Object
+};
+
 class Value {
 private:
     HxOrtValue res;
@@ -18,17 +27,41 @@ public:
         res = v;
     }
 
-    const HxOrtValue& Extract() const {
+    ValueType Type() const noexcept {
+        char t = hexagon_ort_value_get_type(&res);
+        switch(t) {
+            case 'B': {
+                return ValueType::Bool;
+            }
+            case 'F': {
+                return ValueType::Float;
+            }
+            case 'I': {
+                return ValueType::Int;
+            }
+            case 'N': {
+                return ValueType::Null;
+            }
+            case 'O': {
+                return ValueType::Object;
+            }
+            default: {
+                return ValueType::Unknown;
+            }
+        }
+    }
+
+    const HxOrtValue& Extract() const noexcept {
         return res;
     }
 
-    static Value Null() {
+    static Value Null() noexcept {
         HxOrtValue place;
         hexagon_ort_value_create_from_null(&place);
         return Value(place);
     }
 
-    template<class T> static Value FromInt(T v) {
+    template<class T> static Value FromInt(T v) noexcept {
         static_assert(std::is_integral<T>::value, "Parameter must be of an integral type");
 
         HxOrtValue place;
@@ -36,7 +69,7 @@ public:
         return Value(place);
     }
 
-    template<class T> static Value FromFloat(T v) {
+    template<class T> static Value FromFloat(T v) noexcept {
         static_assert(std::is_floating_point<T>::value, "Parameter must be of a floating point type");
 
         HxOrtValue place;
@@ -71,7 +104,7 @@ public:
         return (bool) ret;
     }
 
-    bool IsNull() const {
+    bool IsNull() const noexcept {
         int err = hexagon_ort_value_read_null(&res);
         return err == 0;
     }
