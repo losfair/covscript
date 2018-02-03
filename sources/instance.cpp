@@ -60,6 +60,7 @@ namespace cs {
 		}
 
 		auto entry_fn = fwriter.Build();
+		entry_fn.EnableOptimization();
 
 		ort::Runtime rt;
 		rt.AttachFunction("__entry", entry_fn);

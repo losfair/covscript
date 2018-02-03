@@ -212,6 +212,7 @@ namespace cs {
 		std::unordered_map<std::string, int> locals;
 		std::vector<std::string> locals_reverse;
 		std::vector<std::string> arg_names;
+		std::vector<std::pair<int, int>> loop_control_target_blocks; // (continue, break)
 		int current;
 
 		function_builder(const function_builder& other) = delete;
@@ -235,6 +236,21 @@ namespace cs {
 
 		void add_argument(const std::string& name) {
 			arg_names.push_back(name);
+		}
+
+		void push_loop_control_info(int continue_block, int break_block) {
+			loop_control_target_blocks.push_back(std::make_pair(continue_block, break_block));
+		}
+
+		void pop_loop_control_info() {
+			loop_control_target_blocks.pop_back();
+		}
+
+		std::pair<int, int> get_loop_control_info() {
+			if(loop_control_target_blocks.size() == 0) {
+				throw syntax_error("Invalid break statement");
+			}
+			return loop_control_target_blocks[loop_control_target_blocks.size() - 1];
 		}
 
 		// expected stack state: ... args* target

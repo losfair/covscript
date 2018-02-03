@@ -123,9 +123,23 @@ namespace cs {
 		context->instance->break_block = true;
 	}
 
+	void statement_break::generate_code(function_builder& builder) {
+		using namespace hexagon::assembly_writer;
+		int break_target = builder.get_loop_control_info().second;
+		builder.get_current().Write(BytecodeOp("Branch", Operand::I64(break_target)));
+		builder.terminate_current();
+	}
+
 	void statement_continue::run()
 	{
 		context->instance->continue_block = true;
+	}
+
+	void statement_continue::generate_code(function_builder& builder) {
+		using namespace hexagon::assembly_writer;
+		int continue_target = builder.get_loop_control_info().first;
+		builder.get_current().Write(BytecodeOp("Branch", Operand::I64(continue_target)));
+		builder.terminate_current();
 	}
 
 	void statement_block::run()
@@ -357,32 +371,50 @@ namespace cs {
 	void statement_while::generate_code(function_builder& builder) {
 		using namespace hexagon::assembly_writer;
 
+		// The block before loop
 		auto& prevBlock = builder.get_current();
-		builder.terminate_current();
+		builder.terminate_current(); // branch deferred
 
-		auto& checkBlockBegin = builder.get_current();
-		int checkBlockBeginId = builder.current_id();
+		// Contains the code for checking condition
+		auto& checkBlock = builder.get_current();
+		int checkBlockId = builder.current_id();
 
+		// Codegen for expressions cannot leave the current basic block
 		context -> instance -> generate_code_from_expr(mTree.root(), builder);
+		builder.terminate_current(); // branch deferred
 
-		auto& checkBlockEnd = builder.get_current();
+		// Complete the deferred branch
+		prevBlock.Write(BytecodeOp("Branch", Operand::I64(checkBlockId)));
 
-		prevBlock.Write(BytecodeOp("Branch", Operand::I64(checkBlockBeginId)));
+		// We do not know the id of break target block yet
+		// So we use a intermediate block to jump to it
+		auto& breakBlock = builder.get_current();
+		int breakBlockId = builder.current_id();
+		builder.terminate_current(); // branch deferred
 
-		builder.terminate_current();
-
+		// Now we can build the loop body
 		int bodyBlockBeginId = builder.current_id();
+
+		// set break location
+		builder.push_loop_control_info(checkBlockId, breakBlockId);
 		for(auto& stmt : mBlock) {
 			stmt -> generate_code(builder);
 		}
+		builder.pop_loop_control_info();
 
+		// Codegen for statements may leave the current basic block
 		auto& bodyBlockEnd = builder.get_current();
-		bodyBlockEnd.Write(BytecodeOp("Branch", Operand::I64(checkBlockBeginId)));
+		bodyBlockEnd.Write(BytecodeOp("Branch", Operand::I64(checkBlockId)));
 		builder.terminate_current();
 
+		// We are now in the block after the loop body.
 		int endBlockId = builder.current_id();
 
-		checkBlockEnd.Write(BytecodeOp("CastToBool"))
+		// Complete the deferred branch
+		breakBlock.Write(BytecodeOp("Branch", Operand::I64(endBlockId)));
+
+		// Complete the deferred branch
+		checkBlock.Write(BytecodeOp("CastToBool"))
 			.Write(BytecodeOp(
 				"ConditionalBranch",
 				Operand::I64(bodyBlockBeginId),
@@ -426,6 +458,54 @@ namespace cs {
 			}
 		}
 		while (!(mExpr != nullptr && context->instance->parse_expr(mExpr->get_tree().root()).const_val<boolean>()));
+	}
+
+	void statement_loop::generate_code(function_builder& builder) {
+		using namespace hexagon::assembly_writer;
+
+		// The block before loop
+		auto& prevBlock = builder.get_current();
+		builder.terminate_current(); // branch deferred
+
+		// Contains the code for checking condition
+		auto& checkBlock = builder.get_current();
+		int checkBlockId = builder.current_id();
+
+		// Unconditional
+		builder.terminate_current(); // branch deferred
+
+		// Complete the deferred branch
+		prevBlock.Write(BytecodeOp("Branch", Operand::I64(checkBlockId)));
+
+		// We do not know the id of break target block yet
+		// So we use a intermediate block to jump to it
+		auto& breakBlock = builder.get_current();
+		int breakBlockId = builder.current_id();
+		builder.terminate_current(); // branch deferred
+
+		// Now we can build the loop body
+		int bodyBlockBeginId = builder.current_id();
+
+		// set break location
+		builder.push_loop_control_info(checkBlockId, breakBlockId);
+		for(auto& stmt : mBlock) {
+			stmt -> generate_code(builder);
+		}
+		builder.pop_loop_control_info();
+
+		// Codegen for statements may leave the current basic block
+		auto& bodyBlockEnd = builder.get_current();
+		bodyBlockEnd.Write(BytecodeOp("Branch", Operand::I64(checkBlockId)));
+		builder.terminate_current();
+
+		// We are now in the block after the loop body.
+		int endBlockId = builder.current_id();
+
+		// Complete the deferred branch
+		breakBlock.Write(BytecodeOp("Branch", Operand::I64(endBlockId)));
+
+		// Complete the deferred branch
+		checkBlock.Write(BytecodeOp("Branch", Operand::I64(bodyBlockBeginId)));
 	}
 
 	void statement_for::run()

@@ -91,6 +91,8 @@ namespace cs {
 		}
 
 		virtual void run() override;
+
+		virtual void generate_code(function_builder& builder) override;
 	};
 
 	class statement_continue final : public statement_base {
@@ -105,6 +107,8 @@ namespace cs {
 		}
 
 		virtual void run() override;
+
+		virtual void generate_code(function_builder& builder) override;
 	};
 
 	class statement_block final : public statement_base {
@@ -331,6 +335,8 @@ namespace cs {
 		}
 
 		virtual void run() override;
+
+		virtual void generate_code(function_builder& builder) override;
 	};
 
 	class statement_for final : public statement_base {
