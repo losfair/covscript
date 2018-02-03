@@ -268,6 +268,7 @@ namespace cs {
 	public:
 		// Context
 		context_t context;
+		ort::Runtime hvm_rt;
 
 		// Constructor and destructor
 		instance_type() : context(std::make_shared<context_type>(this))

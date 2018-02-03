@@ -105,10 +105,16 @@ void hexagon_ort_executor_pin_object_proxy(
     HxOrtExecutorImpl e,
     HxOrtObjectProxy p
 );
+void hexagon_ort_executor_pin_function(
+    HxOrtValue *place,
+    HxOrtExecutorImpl e,
+    HxOrtFunction f
+);
 void hexagon_ort_value_create_from_null(HxOrtValue *place);
 void hexagon_ort_value_create_from_bool(HxOrtValue *place, unsigned int v);
 void hexagon_ort_value_create_from_i64(HxOrtValue *place, long long v);
 void hexagon_ort_value_create_from_f64(HxOrtValue *place, double v);
+void hexagon_ort_value_create_from_string(HxOrtValue *place, const char *v, HxOrtExecutorImpl e);
 int hexagon_ort_value_read_i64(long long *place, const HxOrtValue *v);
 int hexagon_ort_value_read_f64(double *place, const HxOrtValue *v);
 int hexagon_ort_value_read_null(const HxOrtValue *v);

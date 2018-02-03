@@ -28,6 +28,14 @@
 #include <hexagon/ort_assembly_writer.h>
 
 namespace cs {
+	hexagon::ort::Runtime* get_active_runtime();
+
+	class hvm_runtime_guard {
+	public:
+		hvm_runtime_guard(hexagon::ort::Runtime *rt);
+		~hvm_runtime_guard();
+	};
+
 	class domain_manager {
 		std::deque<spp::sparse_hash_set<string>> m_set;
 		std::deque<domain_t> m_data;

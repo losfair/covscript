@@ -21,9 +21,13 @@
 */
 #include <covscript/typedef.hpp>
 #include <mozart/memory.hpp>
+#include <hexagon/ort.h>
+#include <vector>
 #include <type_traits>
 #include <functional>
 #include <ostream>
+
+using namespace hexagon;
 
 namespace cs_impl {
 
@@ -283,7 +287,7 @@ namespace cs_impl {
 		throw cs::syntax_error("Target type does not support extensions.");
 	}
 
-	class any final {
+	class any final : public ort::ProxiedObject {
 		class baseHolder {
 		public:
 			baseHolder() = default;
@@ -527,6 +531,11 @@ namespace cs_impl {
 		{
 			recycle();
 		}
+
+		static any from_hvm_value(const ort::Value& v);
+		ort::Value to_hvm_value();
+		virtual ort::Value Call(const std::vector<ort::Value>& args) override;
+		virtual ort::Value GetField(const char *name) override;
 
 		const std::type_info &type() const
 		{

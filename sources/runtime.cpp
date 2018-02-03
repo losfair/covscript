@@ -20,8 +20,27 @@
 */
 #include <covscript/runtime.hpp>
 #include <string>
+#include <vector>
 
 namespace cs {
+	// TODO: Make this thread-local
+	static std::vector<hexagon::ort::Runtime *> active_runtimes;
+
+	hvm_runtime_guard::hvm_runtime_guard(hexagon::ort::Runtime *rt) {
+		active_runtimes.push_back(rt);
+	}
+
+	hvm_runtime_guard::~hvm_runtime_guard() {
+		active_runtimes.pop_back();
+	}
+
+	hexagon::ort::Runtime * get_active_runtime() {
+		if(active_runtimes.size() == 0) {
+			throw internal_error("No active runtime(s)");
+		}
+		return active_runtimes[active_runtimes.size() - 1];
+	}
+
 	var runtime_type::parse_add(const var &a, const var &b)
 	{
 		if (a.type() == typeid(number) && b.type() == typeid(number))
@@ -412,13 +431,6 @@ namespace cs {
 			builder.get_current().Write(BytecodeOp("LoadNull"));
 		} else {
 			throw internal_error(std::string("Unsupported value type: ") + v.get_type_name());
-		}
-	}
-
-	// pops exactly one value
-	static int build_value_store(const cov::tree<token_base *>::iterator& it, function_builder& builder) {
-		if (!it.usable()) {
-			throw internal_error("The expression tree is not available.");
 		}
 	}
 

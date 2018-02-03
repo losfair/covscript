@@ -62,34 +62,65 @@ namespace cs {
 		auto entry_fn = fwriter.Build();
 		entry_fn.EnableOptimization();
 
-		ort::Runtime rt;
-		rt.AttachFunction("__entry", entry_fn);
+		hvm_runtime_guard rt_guard(&hvm_rt);
+
+		ort::Value entry_inst = entry_fn.Pin(hvm_rt);
+
+		std::vector<std::pair<std::string, ort::ObjectProxy>> imports;
+		imports.push_back(std::make_pair(
+			std::string("runtime"),
+			ort::ObjectProxy(new var(make_shared_extension(runtime_ext)))
+		));
+		imports.push_back(std::make_pair(
+			std::string("system"),
+			ort::ObjectProxy(new var(make_shared_extension(system_ext)))
+		));
 
 		FunctionWriter igniter;
-		igniter.Write(
-			BasicBlockWriter()
-				.Write(BytecodeOp("LoadNull")) // no prototype
-				.Write(BytecodeOp("LoadString", Operand::String("new_dynamic")))
-				.Write(BytecodeOp("LoadNull"))
-				.Write(BytecodeOp("LoadString", Operand::String("__builtin")))
-				.Write(BytecodeOp("GetStatic"))
-				.Write(BytecodeOp("CallField", Operand::I64(1))) // the global environment
+		BasicBlockWriter igniter_bb;
+
+		igniter_bb
+			.Write(BytecodeOp("LoadNull")) // no prototype
+			.Write(BytecodeOp("LoadString", Operand::String("new_dynamic")))
+			.Write(BytecodeOp("LoadNull"))
+			.Write(BytecodeOp("LoadString", Operand::String("__builtin")))
+			.Write(BytecodeOp("GetStatic"))
+			.Write(BytecodeOp("CallField", Operand::I64(1))) // the global environment
+			.Write(BytecodeOp("Dup"))
+			.Write(BytecodeOp("LoadString", Operand::String("__builtin")))
+			.Write(BytecodeOp("GetStatic"))
+			.Write(BytecodeOp("LoadString", Operand::String("builtin")))
+			.Write(BytecodeOp("Rotate3"))
+			.Write(BytecodeOp("SetField"));
+
+		for(int i = 0; i < imports.size(); i++) {
+			igniter_bb
 				.Write(BytecodeOp("Dup"))
-				.Write(BytecodeOp("LoadString", Operand::String("__builtin")))
-				.Write(BytecodeOp("GetStatic"))
-				.Write(BytecodeOp("LoadString", Operand::String("builtin")))
+				.Write(BytecodeOp("GetArgument", Operand::I64(i * 2 + 1))) // value
+				.Write(BytecodeOp("GetArgument", Operand::I64(i * 2 + 2))) // key
 				.Write(BytecodeOp("Rotate3"))
-				.Write(BytecodeOp("SetField"))
-				.Write(BytecodeOp("LoadString", Operand::String("__entry")))
-				.Write(BytecodeOp("GetStatic"))
-				.Write(BytecodeOp("Call", Operand::I64(0)))
-				.Write(BytecodeOp("Return"))
+				.Write(BytecodeOp("SetField"));
+		}
+
+		igniter_bb
+			.Write(BytecodeOp("GetArgument", Operand::I64(0)))
+			.Write(BytecodeOp("Call", Operand::I64(0)))
+			.Write(BytecodeOp("Return"));
+
+		igniter.Write(
+			igniter_bb
 		);
 		auto igniter_fn = igniter.Build();
-		rt.AttachFunction("__igniter", igniter_fn);
+		ort::Value igniter_inst = igniter_fn.Pin(hvm_rt);
 
-		ort::Value igniter_inst = rt.GetStaticObject("__igniter");
-		rt.Invoke(igniter_inst, std::vector<ort::Value>());
+		std::vector<ort::Value> igniter_args;
+		igniter_args.push_back(entry_inst);
+		for(auto& import : imports) {
+			igniter_args.push_back(import.second.Pin(hvm_rt));
+			igniter_args.push_back(ort::Value::FromString(import.first, hvm_rt));
+		}
+
+		hvm_rt.Invoke(igniter_inst, igniter_args);
 	}
 
 	void instance_type::init_grammar()

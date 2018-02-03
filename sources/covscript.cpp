@@ -42,6 +42,7 @@
 #include "runtime.cpp"
 #include "statement.cpp"
 #include "codegen.cpp"
+#include "any.cpp"
 
 namespace cs {
 // Internal Functions
@@ -120,8 +121,8 @@ namespace cs {
 		// Add extensions to storage
 		storage.add_buildin_var("exception", var::make_protect<extension_t>(except_ext_shared));
 		storage.add_buildin_var("iostream", var::make_protect<extension_t>(make_shared_extension(iostream_ext)));
-		storage.add_buildin_var("system", var::make_protect<extension_t>(make_shared_extension(system_ext)));
-		storage.add_buildin_var("runtime", var::make_protect<extension_t>(make_shared_extension(runtime_ext)));
+		//storage.add_buildin_var("system", var::make_protect<extension_t>(make_shared_extension(system_ext)));
+		//storage.add_buildin_var("runtime", var::make_protect<extension_t>(make_shared_extension(runtime_ext)));
 		storage.add_buildin_var("math", var::make_protect<extension_t>(make_shared_extension(math_ext)));
 	}
 }
