@@ -467,15 +467,15 @@ namespace cs {
 		auto& prevBlock = builder.get_current();
 		builder.terminate_current(); // branch deferred
 
-		// Contains the code for checking condition
-		auto& checkBlock = builder.get_current();
-		int checkBlockId = builder.current_id();
+		// Loop head
+		auto& initBlock = builder.get_current();
+		int initBlockId = builder.current_id();
 
 		// Unconditional
 		builder.terminate_current(); // branch deferred
 
 		// Complete the deferred branch
-		prevBlock.Write(BytecodeOp("Branch", Operand::I64(checkBlockId)));
+		prevBlock.Write(BytecodeOp("Branch", Operand::I64(initBlockId)));
 
 		// We do not know the id of break target block yet
 		// So we use a intermediate block to jump to it
@@ -487,7 +487,7 @@ namespace cs {
 		int bodyBlockBeginId = builder.current_id();
 
 		// set break location
-		builder.push_loop_control_info(checkBlockId, breakBlockId);
+		builder.push_loop_control_info(initBlockId, breakBlockId);
 		for(auto& stmt : mBlock) {
 			stmt -> generate_code(builder);
 		}
@@ -495,17 +495,31 @@ namespace cs {
 
 		// Codegen for statements may leave the current basic block
 		auto& bodyBlockEnd = builder.get_current();
-		bodyBlockEnd.Write(BytecodeOp("Branch", Operand::I64(checkBlockId)));
-		builder.terminate_current();
+		// We cannot generate code for expressions any more after leaving the block
+		// So just do it here
+		if(mExpr) {
+			context -> instance -> generate_code_from_expr(mExpr -> get_tree().root(), builder);
+		}
+		builder.terminate_current(); // branch deferred
 
 		// We are now in the block after the loop body.
 		int endBlockId = builder.current_id();
+
+		// We've get an `until`
+		// Complete the deferred branch
+		if(mExpr) {
+			bodyBlockEnd
+				.Write(BytecodeOp("CastToBool"))
+				.Write(BytecodeOp("ConditionalBranch", Operand::I64(endBlockId), Operand::I64(initBlockId)));
+		} else {
+			bodyBlockEnd.Write(BytecodeOp("Branch", Operand::I64(initBlockId)));
+		}
 
 		// Complete the deferred branch
 		breakBlock.Write(BytecodeOp("Branch", Operand::I64(endBlockId)));
 
 		// Complete the deferred branch
-		checkBlock.Write(BytecodeOp("Branch", Operand::I64(bodyBlockBeginId)));
+		initBlock.Write(BytecodeOp("Branch", Operand::I64(bodyBlockBeginId)));
 	}
 
 	void statement_for::run()
