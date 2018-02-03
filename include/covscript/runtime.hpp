@@ -367,6 +367,51 @@ namespace cs {
 
 							new_ops.push_back(BytecodeOp("CallField", Operand::I64(2)));
 							new_ops.push_back(BytecodeOp("Pop"));
+						} else if(op.name == "Add") {
+							// pops: left, right
+							// pushes: result
+
+							new_ops.push_back(BytecodeOp("LoadString", Operand::String("add")));
+							new_ops.push_back(BytecodeOp("LoadNull"));
+							new_ops.push_back(BytecodeOp("LoadString", Operand::String("__builtin")));
+							new_ops.push_back(BytecodeOp("GetStatic"));
+							new_ops.push_back(BytecodeOp("CallField", Operand::I64(2)));
+						} else if(op.name == "Sub") {
+							// pops: left, right
+							// pushes: result
+
+							new_ops.push_back(BytecodeOp("LoadString", Operand::String("sub")));
+							new_ops.push_back(BytecodeOp("LoadNull"));
+							new_ops.push_back(BytecodeOp("LoadString", Operand::String("__builtin")));
+							new_ops.push_back(BytecodeOp("GetStatic"));
+							new_ops.push_back(BytecodeOp("CallField", Operand::I64(2)));
+						} else if(op.name == "Mul") {
+							// pops: left, right
+							// pushes: result
+
+							new_ops.push_back(BytecodeOp("LoadString", Operand::String("mul")));
+							new_ops.push_back(BytecodeOp("LoadNull"));
+							new_ops.push_back(BytecodeOp("LoadString", Operand::String("__builtin")));
+							new_ops.push_back(BytecodeOp("GetStatic"));
+							new_ops.push_back(BytecodeOp("CallField", Operand::I64(2)));
+						} else if(op.name == "Div") {
+							// pops: left, right
+							// pushes: result
+
+							new_ops.push_back(BytecodeOp("LoadString", Operand::String("div")));
+							new_ops.push_back(BytecodeOp("LoadNull"));
+							new_ops.push_back(BytecodeOp("LoadString", Operand::String("__builtin")));
+							new_ops.push_back(BytecodeOp("GetStatic"));
+							new_ops.push_back(BytecodeOp("CallField", Operand::I64(2)));
+						} else if(op.name == "Mod") {
+							// pops: left, right
+							// pushes: result
+
+							new_ops.push_back(BytecodeOp("LoadString", Operand::String("mod")));
+							new_ops.push_back(BytecodeOp("LoadNull"));
+							new_ops.push_back(BytecodeOp("LoadString", Operand::String("__builtin")));
+							new_ops.push_back(BytecodeOp("GetStatic"));
+							new_ops.push_back(BytecodeOp("CallField", Operand::I64(2)));
 						} else {
 							new_ops.push_back(op);
 						}
