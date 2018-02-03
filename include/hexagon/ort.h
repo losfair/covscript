@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <functional>
 #include <vector>
+#include <memory>
 
 namespace hexagon {
 namespace ort {
@@ -156,6 +157,10 @@ public:
         }
     }
 
+    HxOrtExecutorImpl _impl_handle() {
+        return executor;
+    }
+
     Runtime& AttachFunction(const char *key, Function& f) {
         HxOrtFunction fn_res = f.res;
         f.res = nullptr;
@@ -206,6 +211,89 @@ public:
             args.size()
         );
         return Value(ret_place);
+    }
+};
+
+class ProxiedObject {
+public:
+    virtual ~ProxiedObject() {};
+
+    virtual Value Call(const std::vector<Value>& args) {
+        throw std::runtime_error("Call: Not implemented");
+    };
+
+    virtual Value GetField(const char *name) {
+        throw std::runtime_error("GetField: Not implemented");
+    };
+};
+
+class ObjectProxy final {
+private:
+    HxOrtObjectProxy proxy;
+
+public:
+    ObjectProxy(ProxiedObject *proxied) {
+        proxy = hexagon_ort_object_proxy_create((void *) &*proxied);
+        hexagon_ort_object_proxy_set_destructor(proxy, [](
+            void *data
+        ) {
+            ProxiedObject *proxied = (ProxiedObject *) data;
+            delete proxied;
+        });
+        hexagon_ort_object_proxy_set_on_call(proxy, [](
+            HxOrtValue *place,
+            void *data,
+            unsigned int n_args,
+            const HxOrtValue *args
+        ) -> int {
+            ProxiedObject *proxied = (ProxiedObject *) data;
+            std::vector<Value> target_args;
+            for(unsigned int i = 0; i < n_args; i++) {
+                target_args.push_back(args[i]);
+            }
+            try {
+                Value ret = proxied -> Call(target_args);
+                *place = ret.Extract();
+                return 0;
+            } catch(...) {
+                return 1;
+            }
+        });
+        hexagon_ort_object_proxy_set_on_get_field(proxy, [](
+            HxOrtValue *place,
+            void *data,
+            const char *field_name
+        ) -> int {
+            ProxiedObject *proxied = (ProxiedObject *) data;
+            try {
+                Value ret = proxied -> GetField(field_name);
+                *place = ret.Extract();
+                return 0;
+            } catch(...) {
+                return 1;
+            }
+        });
+    }
+
+    Value Pin(Runtime& rt) {
+        if(!proxy) {
+            throw std::logic_error("Attempting to pin an object proxy that is already dropped");
+        }
+
+        HxOrtValue ret;
+        hexagon_ort_executor_pin_object_proxy(
+            &ret,
+            rt._impl_handle(),
+            proxy
+        );
+        proxy = nullptr;
+        return Value(ret);
+    }
+
+    ~ObjectProxy() {
+        if(proxy) {
+            hexagon_ort_object_proxy_destroy(proxy);
+        }
     }
 };
 
