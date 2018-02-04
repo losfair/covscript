@@ -77,7 +77,8 @@ namespace cs {
 		std::vector<std::pair<std::string, ort::ObjectProxy>> imports;
 		imports.push_back(std::make_pair(
 			std::string("runtime"),
-			ort::ObjectProxy(new var(make_shared_extension(runtime_ext)))
+			//ort::ObjectProxy(new var(make_shared_extension(runtime_ext)))
+			ort::ObjectProxy(new runtime_ext_hvm_impl())
 		));
 		imports.push_back(std::make_pair(
 			std::string("system"),

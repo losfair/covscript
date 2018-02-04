@@ -22,7 +22,12 @@
 #include <mozart/random.hpp>
 #include <mozart/timer.hpp>
 #include <covscript/cni.hpp>
+#include <covscript/runtime.hpp>
 #include <cstdlib>
+#include <hexagon/ort.h>
+#include <vector>
+#include <unordered_map>
+#include <functional>
 
 static cs::extension context_ext;
 static cs::extension_t context_ext_shared = cs::make_shared_extension(context_ext);
@@ -143,3 +148,26 @@ namespace runtime_cs_ext {
 		context_ext.add_var("dynamic_import", var::make_protect<callable>(cni(dynamic_import), true));
 	}
 }
+
+class runtime_ext_hvm_impl : public ort::ProxiedObject {
+private:
+	std::unordered_map<std::string, std::function<ort::Value ()>> fields;
+
+public:
+	runtime_ext_hvm_impl() {
+	}
+
+	virtual void Init(ort::ObjectProxy& proxy) {
+		proxy.SetStaticField("time", ort::Function::LoadNative([]() {
+			return ort::Value::FromFloat(runtime_cs_ext::time());
+		}).Pin(*cs::get_active_runtime()));
+	}
+
+	virtual ort::Value GetField(const char *name) {
+		auto it = fields.find(name);
+		if(it == fields.end()) {
+			throw cs::internal_error("Field not found");
+		}
+		return (it -> second)();
+	}
+};
