@@ -162,10 +162,16 @@ public:
     ) {
         std::function<Value ()> *cb_handle = new std::function<Value ()>(cb_ref);
         HxOrtFunction v = hexagon_ort_function_load_native(
-            [](HxOrtValue *ret_place, HxOrtExecutorImpl _exec_impl, void *cb_ptr) {
+            [](HxOrtValue *ret_place, HxOrtExecutorImpl _exec_impl, void *cb_ptr) -> int {
                 std::function<Value ()>& cb = *(std::function<Value ()> *)cb_ptr;
-                Value ret = cb();
-                *ret_place = ret.Extract();
+                try {
+                    Value ret = cb();
+                    *ret_place = ret.Extract();
+                    return 0;
+                } catch(...) {
+                    *ret_place = Value::Null().Extract();
+                    return 1;
+                }
             },
             [](void *cb_ptr) {
                 delete (std::function<Value ()> *)cb_ptr;
@@ -256,9 +262,15 @@ public:
     }
 };
 
+class ObjectProxy;
+
 class ProxiedObject {
 public:
     virtual ~ProxiedObject() {};
+
+    virtual void Init(ObjectProxy& proxy) {
+
+    }
 
     virtual Value Call(const std::vector<Value>& args) {
         throw std::runtime_error("Call: Not implemented");
@@ -295,6 +307,7 @@ public:
             const HxOrtValue *args
         ) -> int {
             ProxiedObject *proxied = (ProxiedObject *) data;
+
             std::vector<Value> target_args;
             for(unsigned int i = 0; i < n_args; i++) {
                 target_args.push_back(args[i]);
@@ -321,6 +334,15 @@ public:
                 return 1;
             }
         });
+        proxied -> Init(*this);
+    }
+
+    void SetStaticField(const std::string& k, const Value& v) {
+        if(!proxy) {
+            throw std::logic_error("Attempting to use an object proxy after drop");
+        }
+
+        hexagon_ort_object_proxy_set_static_field(proxy, k.c_str(), &v.Extract());
     }
 
     Value Pin(Runtime& rt) {
