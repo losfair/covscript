@@ -41,6 +41,8 @@ namespace cs_impl {
             return ort::Value::FromFloat(const_val<long double>());
         } else if(v_type == typeid(std::string)) {
             return ort::Value::FromString(const_val<std::string>(), *cs::get_active_runtime());
+        } else if(v_type == typeid(bool)) {
+            return ort::Value::FromBool(const_val<bool>());
         } else {
             return ort::ObjectProxy(new any(*this)).Pin(*cs::get_active_runtime());
         }

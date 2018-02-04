@@ -436,6 +436,9 @@ namespace cs {
 				throw syntax_error("Only null pointers are supported");
 			}
 			builder.get_current().Write(BytecodeOp("LoadNull"));
+		} else if(v.type() == typeid(cs::boolean)) {
+			bool b = v.const_val<cs::boolean>();
+			builder.get_current().Write(BytecodeOp("LoadBool", Operand::Bool(b)));
 		} else {
 			throw internal_error(std::string("Unsupported value type: ") + v.get_type_name());
 		}
