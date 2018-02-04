@@ -214,11 +214,25 @@ namespace cs {
 		}
 	};
 
+	class function_builder;
+
+	class builder_var_scope {
+	public:
+		function_builder *builder;
+		builder_var_scope(function_builder *b);
+		~builder_var_scope();
+	};
+
+	class var_scope_impl {
+	public:
+		std::unordered_map<std::string, int> locals;
+	};
+
 	class function_builder {
 	public:
 		std::vector<std::unique_ptr<hexagon::assembly_writer::BasicBlockWriter>> blocks;
-		std::unordered_map<std::string, int> locals;
-		std::vector<std::string> locals_reverse;
+		std::vector<var_scope_impl> vars;
+		int next_local_id;
 		std::vector<std::string> arg_names;
 		std::vector<std::pair<int, int>> loop_control_target_blocks; // (continue, break)
 		int current;
@@ -226,6 +240,9 @@ namespace cs {
 		function_builder(const function_builder& other) = delete;
 
 		function_builder() {
+			vars.push_back(var_scope_impl());
+			next_local_id = 0;
+
 			// Initializations
 			blocks.push_back(std::unique_ptr<hexagon::assembly_writer::BasicBlockWriter>(new hexagon::assembly_writer::BasicBlockWriter()));
 
@@ -289,6 +306,62 @@ namespace cs {
 			}
 		}
 
+		void transform_last_op_to_modify(const std::function<void ()>& modifier) {
+			using namespace hexagon::assembly_writer;
+			
+			auto& current = get_current();
+
+			if(current.opcodes.size() == 0) {
+				throw internal_error("No opcodes");
+			}
+
+			int last_id = current.opcodes.size() - 1;
+			BytecodeOp last = current.opcodes[last_id];
+
+			if(last.name == "GetLocal") {
+				// original: ... -> ... [b] (Pushes the value onto stack)
+				// new: ... -> ... (Moves the value on stack to local)
+				modifier();
+
+				Operand local_id = last.operands.at(0);
+				current.opcodes.push_back(BytecodeOp("SetLocal", local_id));
+			} else if(last.name == "GetArrayElement") {
+				// original: ... a key obj -> a [b]
+				// new: ... a key obj -> ... a
+				current.opcodes[last_id] = BytecodeOp("Rotate2"); // (a, obj, key)
+				current.opcodes.push_back(BytecodeOp("Dup")); // (a, obj, key, key)
+				current.opcodes.push_back(BytecodeOp("Rotate3")); // (a, key, key, obj)
+				current.opcodes.push_back(BytecodeOp("Dup")); // (a, key, key, obj, obj)
+				current.opcodes.push_back(BytecodeOp("Rotate3")); // (a, key, obj, obj, key)
+				current.opcodes.push_back(BytecodeOp("Rotate2")); // (a, key, obj, key, obj)
+				current.opcodes.push_back(last); // (a, key, obj, item)
+
+				modifier(); // (a, key, obj, v)
+
+				current.opcodes.push_back(BytecodeOp("Rotate3")); // (a, obj, v, key)
+				current.opcodes.push_back(BytecodeOp("Rotate3")); // (a, v, key, obj)
+				current.opcodes.push_back(BytecodeOp("SetArrayElement")); // (a)
+			} else if(last.name == "GetField") {
+				// original: ... a key obj -> a [b]
+				// new: ... a key obj -> ... a
+				current.opcodes[last_id] = BytecodeOp("Rotate2"); // (a, obj, key)
+				current.opcodes.push_back(BytecodeOp("Dup")); // (a, obj, key, key)
+				current.opcodes.push_back(BytecodeOp("Rotate3")); // (a, key, key, obj)
+				current.opcodes.push_back(BytecodeOp("Dup")); // (a, key, key, obj, obj)
+				current.opcodes.push_back(BytecodeOp("Rotate3")); // (a, key, obj, obj, key)
+				current.opcodes.push_back(BytecodeOp("Rotate2")); // (a, key, obj, key, obj)
+				current.opcodes.push_back(last); // (a, key, obj, item)
+
+				modifier(); // (a, key, obj, v)
+
+				current.opcodes.push_back(BytecodeOp("Rotate3")); // (a, obj, v, key)
+				current.opcodes.push_back(BytecodeOp("Rotate3")); // (a, v, key, obj)
+				current.opcodes.push_back(BytecodeOp("SetField")); // (a)
+			} else {
+				throw internal_error(std::string("Transformation not implemented: ") + last.name);
+			}
+		}
+
 		void transform_last_op_to_set() {
 			using namespace hexagon::assembly_writer;
 
@@ -313,7 +386,7 @@ namespace cs {
 				// new: ... a key obj -> ...
 				last = BytecodeOp("SetField");
 			} else {
-				throw internal_error("Transformation not implemented");
+				throw internal_error(std::string("Transformation not implemented: ") + last.name);
 			}
 		}
 
@@ -328,7 +401,7 @@ namespace cs {
 
 			auto& init_blk = *blocks[0];
 			init_blk.Clear();
-			init_blk.Write(BytecodeOp("InitLocal", Operand::I64(locals_reverse.size())));
+			init_blk.Write(BytecodeOp("InitLocal", Operand::I64(next_local_id)));
 			init_blk.Write(BytecodeOp("Branch", Operand::I64(1)));
 			for(int i = 0; i < arg_names.size(); i++) {
 				init_blk
@@ -390,26 +463,44 @@ namespace cs {
 			return current;
 		}
 
-		int map_local(const std::string& name) {
-			if(locals.find(name) == locals.end()) {
-				int new_id = locals_reverse.size();
-				locals_reverse.push_back(name);
-				locals[name] = new_id;
-				return new_id;
-			} else {
-				return locals[name];
+		bool try_map_local(const std::string& name, int& out) {
+			for(auto it = vars.rbegin(); it != vars.rend(); it++) {
+				auto& locals = it -> locals;
+
+				if(locals.find(name) != locals.end()) {
+					out = locals[name];
+					return true;
+				}
 			}
+			return false;
 		}
 
-		bool try_map_local(const std::string& name, int& out) {
-			if(locals.find(name) == locals.end()) {
-				return false;
-			} else {
-				out = locals[name];
-				return true;
+		int map_local(const std::string& name) {
+			int id = -1;
+			if(try_map_local(name, id)) {
+				return id;
 			}
+
+			auto last = vars.rbegin();
+			int new_id = next_local_id++;
+
+			last -> locals[name] = new_id;
+			return new_id;
+		}
+
+		int anonymous_local() {
+			return next_local_id++;
 		}
 	};
+
+	builder_var_scope::builder_var_scope(function_builder *b) {
+		builder = b;
+		builder -> vars.push_back(var_scope_impl());
+	}
+
+	builder_var_scope::~builder_var_scope() {
+		builder -> vars.pop_back();
+	}
 
 	class runtime_type {
 	public:

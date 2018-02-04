@@ -84,6 +84,14 @@ namespace cs {
 			std::string("system"),
 			ort::ObjectProxy(new var(make_shared_extension(system_ext)))
 		));
+		imports.push_back(std::make_pair(
+			std::string("math"),
+			ort::ObjectProxy(new var(make_shared_extension(math_ext)))
+		));
+		imports.push_back(std::make_pair(
+			std::string("iostream"),
+			ort::ObjectProxy(new var(make_shared_extension(iostream_ext)))
+		));
 
 		FunctionWriter igniter;
 		BasicBlockWriter igniter_bb;
@@ -99,6 +107,20 @@ namespace cs {
 			.Write(BytecodeOp("LoadString", Operand::String("__builtin")))
 			.Write(BytecodeOp("GetStatic"))
 			.Write(BytecodeOp("LoadString", Operand::String("builtin")))
+			.Write(BytecodeOp("Rotate3"))
+			.Write(BytecodeOp("SetField"));
+
+		igniter_bb
+			.Write(BytecodeOp("Dup"))
+			.Write(BytecodeOp("LoadString", Operand::String("cs_to_string")))
+			.Write(BytecodeOp("GetStatic"))
+			.Write(BytecodeOp("LoadString", Operand::String("to_string")))
+			.Write(BytecodeOp("Rotate3"))
+			.Write(BytecodeOp("SetField"))
+			.Write(BytecodeOp("Dup"))
+			.Write(BytecodeOp("LoadString", Operand::String("cs_to_integer")))
+			.Write(BytecodeOp("GetStatic"))
+			.Write(BytecodeOp("LoadString", Operand::String("to_integer")))
 			.Write(BytecodeOp("Rotate3"))
 			.Write(BytecodeOp("SetField"));
 
@@ -130,6 +152,31 @@ namespace cs {
 		}
 
 		hvm_rt.Invoke(igniter_inst, igniter_args);
+	}
+
+	void instance_type::init_runtime_with_vm() {
+		using namespace hexagon;
+		using namespace hexagon::assembly_writer;
+
+		ort::Function to_string_fn = FunctionWriter()
+			.Write(
+				BasicBlockWriter()
+					.Write(BytecodeOp("GetArgument", Operand::I64(0)))
+					.Write(BytecodeOp("CastToString"))
+					.Write(BytecodeOp("Return"))
+			)
+			.Build();
+		hvm_rt.AttachFunction("cs_to_string", to_string_fn);
+
+		ort::Function to_integer_fn = FunctionWriter()
+			.Write(
+				BasicBlockWriter()
+					.Write(BytecodeOp("GetArgument", Operand::I64(0)))
+					.Write(BytecodeOp("CastToInt"))
+					.Write(BytecodeOp("Return"))
+			)
+			.Build();
+		hvm_rt.AttachFunction("cs_to_integer", to_integer_fn);
 	}
 
 	void instance_type::init_grammar()

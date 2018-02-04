@@ -397,9 +397,15 @@ namespace cs {
 	static void build_value_load(function_builder& builder, var& v) {
 		using namespace hexagon::assembly_writer;
 
-		if(v.type() == typeid(int) || v.type() == typeid(long) || v.type() == typeid(long long) || v.type() == typeid(number)) {
+		if(v.type() == typeid(int) || v.type() == typeid(long) || v.type() == typeid(long long)) {
 			auto inner = v.to_integer();
 			builder.get_current().Write(BytecodeOp("LoadInt", Operand::I64(inner)));
+		} else if(v.type() == typeid(float)) {
+			builder.get_current().Write(BytecodeOp("LoadFloat", Operand::F64(v.const_val<float>())));
+		} else if(v.type() == typeid(double)) {
+			builder.get_current().Write(BytecodeOp("LoadFloat", Operand::F64(v.const_val<double>())));
+		} else if(v.type() == typeid(long double)) {
+			builder.get_current().Write(BytecodeOp("LoadFloat", Operand::F64(v.const_val<long double>())));
 		} else if(v.type() == typeid(string)) {
 			auto inner = v.to_string();
 			builder.get_current().Write(BytecodeOp("LoadString", Operand::String(inner)));
@@ -523,31 +529,83 @@ namespace cs {
 					break;
 				}
 				case signal_types::inc_: {
-					builder.get_current()
-						.Write(BytecodeOp("LoadInt", Operand::I64(1)));
+					bool is_right = false;
 
-					generate_code_from_expr(it.left(), builder);
+					token_base *left_data = it.left().data();
+					token_base *right_data = it.right().data();
 
-					builder.get_current()
-						.Write(BytecodeOp("IntAdd"))
-						.Write(BytecodeOp("Dup"));
+					if(left_data && !right_data) {
+						is_right = false;
+						generate_code_from_expr(it.left(), builder);
+					} else if(right_data && !left_data) {
+						is_right = true;
+						generate_code_from_expr(it.right(), builder);
+					} else {
+						throw syntax_error("Invalid use of the inc operator");
+					}
 
-					generate_code_from_expr(it.left(), builder);
-					builder.transform_last_op_to_set();
+					int result_id = builder.anonymous_local();
+
+					builder.transform_last_op_to_modify([&]() {
+						if(!is_right) {
+							builder.get_current()
+								.Write(BytecodeOp("Dup"))
+								.Write(BytecodeOp("SetLocal", Operand::I64(result_id)));
+						}
+
+						builder.get_current()
+							.Write(BytecodeOp("LoadInt", Operand::I64(1)))
+							.Write(BytecodeOp("Rotate2"))
+							.Write(BytecodeOp("IntAdd"));
+							
+
+						if(is_right) {
+							builder.get_current()
+								.Write(BytecodeOp("Dup"))
+								.Write(BytecodeOp("SetLocal", Operand::I64(result_id)));
+						}
+					});
+					builder.get_current().Write(BytecodeOp("GetLocal", Operand::I64(result_id)));
 					break;
 				}
 				case signal_types::dec_: {
-					builder.get_current()
-						.Write(BytecodeOp("LoadInt", Operand::I64(1)));
+					bool is_right = false;
 
-					generate_code_from_expr(it.left(), builder);
+					token_base *left_data = it.left().data();
+					token_base *right_data = it.right().data();
 
-					builder.get_current()
-						.Write(BytecodeOp("IntSub"))
-						.Write(BytecodeOp("Dup"));
+					if(left_data && !right_data) {
+						is_right = false;
+						generate_code_from_expr(it.left(), builder);
+					} else if(right_data && !left_data) {
+						is_right = true;
+						generate_code_from_expr(it.right(), builder);
+					} else {
+						throw syntax_error("Invalid use of the inc operator");
+					}
 
-					generate_code_from_expr(it.left(), builder);
-					builder.transform_last_op_to_set();
+					int result_id = builder.anonymous_local();
+
+					builder.transform_last_op_to_modify([&]() {
+						if(!is_right) {
+							builder.get_current()
+								.Write(BytecodeOp("Dup"))
+								.Write(BytecodeOp("SetLocal", Operand::I64(result_id)));
+						}
+
+						builder.get_current()
+							.Write(BytecodeOp("LoadInt", Operand::I64(1)))
+							.Write(BytecodeOp("Rotate2"))
+							.Write(BytecodeOp("IntSub"));
+							
+
+						if(is_right) {
+							builder.get_current()
+								.Write(BytecodeOp("Dup"))
+								.Write(BytecodeOp("SetLocal", Operand::I64(result_id)));
+						}
+					});
+					builder.get_current().Write(BytecodeOp("GetLocal", Operand::I64(result_id)));
 					break;
 				}
 				case signal_types::asi_: {

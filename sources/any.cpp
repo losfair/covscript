@@ -34,13 +34,13 @@ namespace cs_impl {
         if(v_type == typeid(int) || v_type == typeid(long) || v_type == typeid(long long)) {
             return ort::Value::FromInt(to_integer());
         } else if(v_type == typeid(float)) {
-            return ort::Value::FromFloat(val<float>());
+            return ort::Value::FromFloat(const_val<float>());
         } else if(v_type == typeid(double)) {
-            return ort::Value::FromFloat(val<double>());
+            return ort::Value::FromFloat(const_val<double>());
         } else if(v_type == typeid(long double)) {
-            return ort::Value::FromFloat(val<long double>());
+            return ort::Value::FromFloat(const_val<long double>());
         } else if(v_type == typeid(std::string)) {
-            return ort::Value::FromString(val<std::string>(), *cs::get_active_runtime());
+            return ort::Value::FromString(const_val<std::string>(), *cs::get_active_runtime());
         } else {
             return ort::ObjectProxy(new any(*this)).Pin(*cs::get_active_runtime());
         }

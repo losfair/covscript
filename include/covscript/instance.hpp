@@ -264,6 +264,7 @@ namespace cs {
 		void init_grammar();
 
 		void init_runtime_no_vm();
+		void init_runtime_with_vm();
 
 	public:
 		// Context
@@ -279,6 +280,8 @@ namespace cs {
 			init_grammar();
 			if(!enable_hvm) {
 				init_runtime_no_vm();
+			} else {
+				init_runtime_with_vm();
 			}
 		}
 
