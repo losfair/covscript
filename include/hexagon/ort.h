@@ -80,6 +80,12 @@ public:
         return Value(place);
     }
 
+    static Value FromBool(bool v) noexcept {
+        HxOrtValue place;
+        hexagon_ort_value_create_from_bool(&place, (unsigned int) v);
+        return Value(place);
+    }
+
     static Value FromString(const std::string& s, Runtime& rt);
 
     long long ExtractI64() const {
