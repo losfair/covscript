@@ -144,7 +144,7 @@ namespace cs {
 	};
 
 	class forward_exception final : public std::exception {
-		const char *mWhat;
+		std::string mWhat;
 	public:
 		forward_exception() = delete;
 
@@ -162,7 +162,7 @@ namespace cs {
 
 		virtual const char *what() const noexcept override
 		{
-			return this->mWhat;
+			return this->mWhat.c_str();
 		}
 	};
 }

@@ -90,12 +90,12 @@ namespace cs {
 			m_data.front()->clear();
 		}
 
-		bool exsist_record(const string &name)
+		bool exist_record(const string &name)
 		{
 			return m_set.front().count(name) > 0;
 		}
 
-		bool exsist_record_in_struct(const string &name)
+		bool exist_record_in_struct(const string &name)
 		{
 			for (auto &set:m_set) {
 				if (set.count("__PRAGMA_CS_STRUCT_DEFINITION__") > 0)
@@ -104,7 +104,7 @@ namespace cs {
 			return false;
 		}
 
-		bool var_exsist(const string &name)
+		bool var_exist(const string &name)
 		{
 			for (auto &domain:m_data)
 				if (domain->count(name) > 0)
@@ -112,12 +112,12 @@ namespace cs {
 			return false;
 		}
 
-		bool var_exsist_current(const string &name)
+		bool var_exist_current(const string &name)
 		{
 			return m_data.front()->count(name) > 0;
 		}
 
-		bool var_exsist_global(const string &name)
+		bool var_exist_global(const string &name)
 		{
 			return m_data.back()->count(name) > 0;
 		}
@@ -146,7 +146,7 @@ namespace cs {
 
 		void add_record(const string &name)
 		{
-			if (exsist_record(name))
+			if (exist_record(name))
 				throw syntax_error("Redefinition of variable \"" + name + "\".");
 			else
 				m_set.front().emplace(name);
@@ -159,7 +159,7 @@ namespace cs {
 
 		void add_var(const string &name, const var &var)
 		{
-			if (var_exsist_current(name))
+			if (var_exist_current(name))
 				throw syntax_error("Target domain exist variable \"" + name + "\".");
 			else
 				m_data.front()->emplace(name, var);
@@ -167,7 +167,7 @@ namespace cs {
 
 		void add_var_global(const string &name, const var &var)
 		{
-			if (var_exsist_global(name))
+			if (var_exist_global(name))
 				throw syntax_error("Target domain exist variable \"" + name + "\".");
 			else
 				m_data.back()->emplace(name, var);
