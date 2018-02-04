@@ -394,7 +394,7 @@ namespace cs {
 	}
 
 	// pushes exactly one value
-	static void build_value_load(function_builder& builder, var& v) {
+	static void build_value_load(function_builder& builder, const var& v) {
 		using namespace hexagon::assembly_writer;
 
 		if(v.type() == typeid(int) || v.type() == typeid(long) || v.type() == typeid(long long)) {
@@ -415,10 +415,11 @@ namespace cs {
 				.Write(BytecodeOp("LoadNull"))
 				.Write(BytecodeOp("LoadString", Operand::String("__builtin")))
 				.Write(BytecodeOp("GetStatic"))
-				.Write(BytecodeOp("CallField", Operand::I64(0)))
-				.Write(BytecodeOp("Dup"));
+				.Write(BytecodeOp("CallField", Operand::I64(0)));
 
-			for (var& elem : v.val<array>()) {
+			for (const var& elem : v.const_val<array>()) {
+				builder.get_current()
+					.Write(BytecodeOp("Dup"));
 				build_value_load(builder, elem);
 				builder.get_current()
 					.Write(BytecodeOp("Rotate2"))
@@ -430,7 +431,7 @@ namespace cs {
 					.Write(BytecodeOp("Pop"));
 			}
 		} else if(v.type() == typeid(pointer)) {
-			pointer p = v.val<pointer>();
+			pointer p = v.const_val<pointer>();
 			if(p.data.usable()) {
 				throw syntax_error("Only null pointers are supported");
 			}
