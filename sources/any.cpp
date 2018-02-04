@@ -12,10 +12,10 @@ namespace cs_impl {
                 return any(v.ExtractBool());
             }
             case ort::ValueType::Float: {
-                return any(v.ExtractF64());
+                return any((cs::number) v.ExtractF64());
             }
             case ort::ValueType::Int: {
-                return any(v.ExtractI64());
+                return any((cs::number) v.ExtractI64());
             }
             case ort::ValueType::Null: {
                 throw cs::internal_error("Conversion not supported (null)");
