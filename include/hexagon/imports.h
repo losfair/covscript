@@ -116,6 +116,10 @@ void hexagon_ort_executor_pin_function(
     HxOrtExecutorImpl e,
     HxOrtFunction f
 );
+void hexagon_ort_executor_impl_set_stack_limit(
+    HxOrtExecutorImpl e,
+    unsigned int limit
+);
 void hexagon_ort_value_create_from_null(HxOrtValue *place);
 void hexagon_ort_value_create_from_bool(HxOrtValue *place, unsigned int v);
 void hexagon_ort_value_create_from_i64(HxOrtValue *place, long long v);

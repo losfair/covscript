@@ -268,6 +268,10 @@ public:
         return Value(ret_place);
     }
 
+    void SetStackLimit(unsigned int limit) {
+        hexagon_ort_executor_impl_set_stack_limit(executor, limit);
+    }
+
     Value Invoke(Value obj, const std::vector<Value>& params) {
         HxOrtValue ret_place;
 
