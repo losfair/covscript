@@ -508,10 +508,52 @@ namespace cs {
 					builder.get_current().Write(BytecodeOp("Add"));
 					break;
 				}
+				case signal_types::addasi_: {
+					int rvalue_id = builder.anonymous_local();
+					generate_code_from_expr(it.right(), builder);
+					builder.get_current()
+						.Write(BytecodeOp("SetLocal", Operand::I64(rvalue_id)));
+
+					generate_code_from_expr(it.left(), builder);
+
+					int result_id = builder.anonymous_local();
+
+					builder.transform_last_op_to_modify([&]() {
+						builder.get_current()
+							.Write(BytecodeOp("GetLocal", Operand::I64(rvalue_id)))
+							.Write(BytecodeOp("Rotate2"))
+							.Write(BytecodeOp("Add"))
+							.Write(BytecodeOp("Dup"))
+							.Write(BytecodeOp("SetLocal", Operand::I64(result_id)));
+					});
+					builder.get_current().Write(BytecodeOp("GetLocal", Operand::I64(result_id)));
+					break;
+				}
 				case signal_types::sub_: {
 					generate_code_from_expr(it.right(), builder);
 					generate_code_from_expr(it.left(), builder);
 					builder.get_current().Write(BytecodeOp("Sub"));
+					break;
+				}
+				case signal_types::subasi_: {
+					int rvalue_id = builder.anonymous_local();
+					generate_code_from_expr(it.right(), builder);
+					builder.get_current()
+						.Write(BytecodeOp("SetLocal", Operand::I64(rvalue_id)));
+
+					generate_code_from_expr(it.left(), builder);
+
+					int result_id = builder.anonymous_local();
+
+					builder.transform_last_op_to_modify([&]() {
+						builder.get_current()
+							.Write(BytecodeOp("GetLocal", Operand::I64(rvalue_id)))
+							.Write(BytecodeOp("Rotate2"))
+							.Write(BytecodeOp("Sub"))
+							.Write(BytecodeOp("Dup"))
+							.Write(BytecodeOp("SetLocal", Operand::I64(result_id)));
+					});
+					builder.get_current().Write(BytecodeOp("GetLocal", Operand::I64(result_id)));
 					break;
 				}
 				case signal_types::mul_: {
@@ -520,16 +562,106 @@ namespace cs {
 					builder.get_current().Write(BytecodeOp("Mul"));
 					break;
 				}
+				case signal_types::mulasi_: {
+					int rvalue_id = builder.anonymous_local();
+					generate_code_from_expr(it.right(), builder);
+					builder.get_current()
+						.Write(BytecodeOp("SetLocal", Operand::I64(rvalue_id)));
+
+					generate_code_from_expr(it.left(), builder);
+
+					int result_id = builder.anonymous_local();
+
+					builder.transform_last_op_to_modify([&]() {
+						builder.get_current()
+							.Write(BytecodeOp("GetLocal", Operand::I64(rvalue_id)))
+							.Write(BytecodeOp("Rotate2"))
+							.Write(BytecodeOp("Mul"))
+							.Write(BytecodeOp("Dup"))
+							.Write(BytecodeOp("SetLocal", Operand::I64(result_id)));
+					});
+					builder.get_current().Write(BytecodeOp("GetLocal", Operand::I64(result_id)));
+					break;
+				}
 				case signal_types::div_: {
 					generate_code_from_expr(it.right(), builder);
 					generate_code_from_expr(it.left(), builder);
 					builder.get_current().Write(BytecodeOp("Div"));
 					break;
 				}
+				case signal_types::divasi_: {
+					int rvalue_id = builder.anonymous_local();
+					generate_code_from_expr(it.right(), builder);
+					builder.get_current()
+						.Write(BytecodeOp("SetLocal", Operand::I64(rvalue_id)));
+
+					generate_code_from_expr(it.left(), builder);
+
+					int result_id = builder.anonymous_local();
+
+					builder.transform_last_op_to_modify([&]() {
+						builder.get_current()
+							.Write(BytecodeOp("GetLocal", Operand::I64(rvalue_id)))
+							.Write(BytecodeOp("Rotate2"))
+							.Write(BytecodeOp("Div"))
+							.Write(BytecodeOp("Dup"))
+							.Write(BytecodeOp("SetLocal", Operand::I64(result_id)));
+					});
+					builder.get_current().Write(BytecodeOp("GetLocal", Operand::I64(result_id)));
+					break;
+				}
 				case signal_types::mod_: {
 					generate_code_from_expr(it.right(), builder);
 					generate_code_from_expr(it.left(), builder);
 					builder.get_current().Write(BytecodeOp("Mod"));
+					break;
+				}
+				case signal_types::modasi_: {
+					int rvalue_id = builder.anonymous_local();
+					generate_code_from_expr(it.right(), builder);
+					builder.get_current()
+						.Write(BytecodeOp("SetLocal", Operand::I64(rvalue_id)));
+
+					generate_code_from_expr(it.left(), builder);
+
+					int result_id = builder.anonymous_local();
+
+					builder.transform_last_op_to_modify([&]() {
+						builder.get_current()
+							.Write(BytecodeOp("GetLocal", Operand::I64(rvalue_id)))
+							.Write(BytecodeOp("Rotate2"))
+							.Write(BytecodeOp("Mod"))
+							.Write(BytecodeOp("Dup"))
+							.Write(BytecodeOp("SetLocal", Operand::I64(result_id)));
+					});
+					builder.get_current().Write(BytecodeOp("GetLocal", Operand::I64(result_id)));
+					break;
+				}
+				case signal_types::pow_: {
+					generate_code_from_expr(it.right(), builder);
+					generate_code_from_expr(it.left(), builder);
+					builder.get_current().Write(BytecodeOp("Pow"));
+					break;
+				}
+				case signal_types::powasi_: {
+					int rvalue_id = builder.anonymous_local();
+					generate_code_from_expr(it.right(), builder);
+					builder.get_current()
+						.Write(BytecodeOp("SetLocal", Operand::I64(rvalue_id)));
+
+					generate_code_from_expr(it.left(), builder);
+
+					int result_id = builder.anonymous_local();
+
+					builder.transform_last_op_to_modify([&]() {
+						builder.get_current()
+							.Write(BytecodeOp("GetLocal", Operand::I64(rvalue_id)))
+							.Write(BytecodeOp("Rotate2"))
+							.Write(BytecodeOp("Pow"))
+							.Write(BytecodeOp("Dup"))
+							.Write(BytecodeOp("SetLocal", Operand::I64(result_id)));
+					});
+					builder.get_current().Write(BytecodeOp("GetLocal", Operand::I64(result_id)));
 					break;
 				}
 				case signal_types::inc_: {
