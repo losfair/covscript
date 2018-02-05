@@ -830,7 +830,9 @@ namespace cs {
 					for (auto &tree : static_cast<token_arglist *>(args)->get_arglist()) {
 						generate_code_from_expr(tree.root(), builder);
 					}
-					builder.get_current().Write(BytecodeOp("RotateReverse", Operand::I64(n_args)));
+					if(n_args) {
+						builder.get_current().Write(BytecodeOp("RotateReverse", Operand::I64(n_args)));
+					}
 
 					generate_code_from_expr(it.left(), builder);
 					builder.complete_call(n_args);
