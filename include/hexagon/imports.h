@@ -93,6 +93,8 @@ HxOrtFunction hexagon_ort_function_load_virtual(
     const unsigned char *code,
     unsigned int len
 );
+char * hexagon_ort_function_dump_json(HxOrtFunction f);
+void hexagon_ort_function_debug_print(HxOrtFunction f);
 void hexagon_ort_executor_impl_get_static_object(
     HxOrtValue *place,
     HxOrtExecutorImpl e,
@@ -142,6 +144,7 @@ void hexagon_ort_object_proxy_set_on_call(HxOrtObjectProxy p, HxOrtObjectProxy_O
 void hexagon_ort_object_proxy_set_on_get_field(HxOrtObjectProxy p, HxOrtObjectProxy_OnGetField f);
 void hexagon_ort_object_handle_destroy(HxOrtObjectHandle h);
 HxOrtObjectProxy hexagon_ort_object_handle_to_object_proxy(HxOrtObjectHandle h);
+HxOrtFunction hexagon_ort_object_handle_to_function(HxOrtObjectHandle h);
 
 static void __hx_platform_abort(const char *msg) {
 #ifdef HX_USE_PLATFORM_LIB

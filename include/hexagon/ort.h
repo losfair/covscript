@@ -146,6 +146,8 @@ public:
     }
 
     ProxiedObject * ToProxiedObject();
+    std::string DumpVirtualFunction();
+    void DebugPrintVirtualFunction();
 
     friend class Value;
 };
@@ -465,6 +467,28 @@ ProxiedObject * ObjectHandle::ToProxiedObject() {
     }
     ProxiedObject *obj = (ProxiedObject *) hexagon_ort_object_proxy_get_data(proxy);
     return obj;
+}
+
+std::string ObjectHandle::DumpVirtualFunction() {
+    HxOrtFunction f = hexagon_ort_object_handle_to_function(res);
+    if(f == nullptr) {
+        throw std::runtime_error("Not a function");
+    }
+    char *code = hexagon_ort_function_dump_json(f);
+    if(code == nullptr) {
+        throw std::runtime_error("The function is not a printable virtual function. Try dump it before any optimizations.");
+    }
+    std::string ret = code;
+    hexagon_glue_destroy_cstring(code);
+    return ret;
+}
+
+void ObjectHandle::DebugPrintVirtualFunction() {
+    HxOrtFunction f = hexagon_ort_object_handle_to_function(res);
+    if(f == nullptr) {
+        throw std::runtime_error("Not a function");
+    }
+    hexagon_ort_function_debug_print(f);
 }
 
 } // namespace ort
