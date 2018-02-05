@@ -425,6 +425,8 @@ namespace cs {
 		}
 
 		virtual void run() override;
+
+		virtual void generate_code(function_builder& builder) override;
 	};
 
 	class statement_return final : public statement_base {
@@ -441,6 +443,8 @@ namespace cs {
 		}
 
 		virtual void run() override;
+
+		virtual void generate_code(function_builder& builder) override;
 	};
 
 	class statement_end final : public statement_base {

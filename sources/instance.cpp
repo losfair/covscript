@@ -57,45 +57,46 @@ namespace cs {
 		using namespace hexagon;
 		using namespace hexagon::assembly_writer;
 
+		hvm_runtime_guard rt_guard(&hvm_rt);
+
+		global_registry registry;
+
 		function_builder builder;
 		for(auto& stmt : statements) {
 			stmt -> generate_code(builder);
 		}
 		builder.get_current().Write(BytecodeOp("LoadNull"));
 		builder.get_current().Write(BytecodeOp("Return"));
-		auto fwriter = builder.build();
-
-		if(debug) {
-			std::cerr << fwriter.ToJson() << std::endl;
-		}
+		auto entry_fn = builder.build(hvm_rt, registry, debug);
 
 		if(compile_only) return;
 
-		auto entry_fn = fwriter.Build();
-		entry_fn.EnableOptimization();
-
-		hvm_runtime_guard rt_guard(&hvm_rt);
-
 		ort::Value entry_inst = entry_fn.Pin(hvm_rt);
 
-		std::vector<std::pair<std::string, ort::ObjectProxy>> imports;
+		std::vector<std::pair<std::string, ort::Value>> imports;
 		imports.push_back(std::make_pair(
 			std::string("runtime"),
-			ort::ObjectProxy(new var(make_shared_extension(runtime_ext)))
+			ort::ObjectProxy(new var(make_shared_extension(runtime_ext))).Pin(hvm_rt)
 			//ort::ObjectProxy(new runtime_ext_hvm_impl())
 		));
 		imports.push_back(std::make_pair(
 			std::string("system"),
-			ort::ObjectProxy(new var(make_shared_extension(system_ext)))
+			ort::ObjectProxy(new var(make_shared_extension(system_ext))).Pin(hvm_rt)
 		));
 		imports.push_back(std::make_pair(
 			std::string("math"),
-			ort::ObjectProxy(new var(make_shared_extension(math_ext)))
+			ort::ObjectProxy(new var(make_shared_extension(math_ext))).Pin(hvm_rt)
 		));
 		imports.push_back(std::make_pair(
 			std::string("iostream"),
-			ort::ObjectProxy(new var(make_shared_extension(iostream_ext)))
+			ort::ObjectProxy(new var(make_shared_extension(iostream_ext))).Pin(hvm_rt)
 		));
+		for(auto& p : registry.get_escalated()) {
+			imports.push_back(std::make_pair(
+				std::string(p.first),
+				p.second
+			));
+		}
 
 		FunctionWriter igniter;
 		BasicBlockWriter igniter_bb;
@@ -131,11 +132,18 @@ namespace cs {
 		for(int i = 0; i < imports.size(); i++) {
 			igniter_bb
 				.Write(BytecodeOp("Dup"))
-				.Write(BytecodeOp("GetArgument", Operand::I64(i * 2 + 1))) // value
-				.Write(BytecodeOp("GetArgument", Operand::I64(i * 2 + 2))) // key
+				.Write(BytecodeOp("GetArgument", Operand::I64(i * 2 + 2))) // value
+				.Write(BytecodeOp("GetArgument", Operand::I64(i * 2 + 3))) // key
 				.Write(BytecodeOp("Rotate3"))
 				.Write(BytecodeOp("SetField"));
 		}
+
+		igniter_bb
+			.Write(BytecodeOp("Dup"))
+			.Write(BytecodeOp("GetArgument", Operand::I64(1)))
+			.Write(BytecodeOp("LoadString", Operand::String("__global_registry")))
+			.Write(BytecodeOp("Rotate3"))
+			.Write(BytecodeOp("SetField"));
 
 		igniter_bb
 			.Write(BytecodeOp("GetArgument", Operand::I64(0)))
@@ -150,8 +158,10 @@ namespace cs {
 
 		std::vector<ort::Value> igniter_args;
 		igniter_args.push_back(entry_inst);
+		igniter_args.push_back(ort::ObjectProxy(new global_registry(registry)).Pin(hvm_rt));
+
 		for(auto& import : imports) {
-			igniter_args.push_back(import.second.Pin(hvm_rt));
+			igniter_args.push_back(import.second);
 			igniter_args.push_back(ort::Value::FromString(import.first, hvm_rt));
 		}
 
@@ -161,6 +171,8 @@ namespace cs {
 	void instance_type::init_runtime_with_vm() {
 		using namespace hexagon;
 		using namespace hexagon::assembly_writer;
+
+		hvm_rt.SetStackLimit(2048);
 
 		ort::Function to_string_fn = FunctionWriter()
 			.Write(

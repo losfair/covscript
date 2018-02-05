@@ -126,9 +126,10 @@ namespace cs {
 
 	class function final {
 		context_t mContext;
+	public:
 		std::vector<std::string> mArgs;
 		std::deque<statement_base *> mBody;
-	public:
+
 		function() = delete;
 
 		function(const function &) = default;

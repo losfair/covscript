@@ -24,6 +24,7 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
+#include <iostream>
 #include <hexagon/ort.h>
 #include <hexagon/ort_assembly_writer.h>
 
@@ -228,8 +229,39 @@ namespace cs {
 		std::unordered_map<std::string, int> locals;
 	};
 
+	class global_registry : public hexagon::ort::ProxiedObject {
+	public:
+		std::unordered_map<std::string, std::pair<hexagon::ort::Value, bool /* escalated */>> globals;
+
+		void add(const std::string& k, const hexagon::ort::Value& v, bool escalated = false) {
+			globals.insert(std::make_pair(k, std::make_pair(v, escalated)));
+		}
+
+		std::unordered_map<std::string, hexagon::ort::Value> get_escalated() {
+			std::unordered_map<std::string, hexagon::ort::Value> ret;
+
+			for(auto& p : globals) {
+				if(p.second.second) {
+					ret.insert(std::make_pair(p.first, p.second.first));
+				}
+			}
+
+			return ret;
+		}
+
+		virtual void Init(hexagon::ort::ObjectProxy& proxy) override {
+			using namespace hexagon;
+
+			for(auto& p : globals) {
+				proxy.SetStaticField(p.first, p.second.first);
+			}
+		}
+	};
+
 	class function_builder {
 	public:
+		function_builder *parent;
+		std::unordered_map<std::string, std::unique_ptr<function_builder>> children;
 		std::vector<std::unique_ptr<hexagon::assembly_writer::BasicBlockWriter>> blocks;
 		std::vector<var_scope_impl> vars;
 		int next_local_id;
@@ -238,8 +270,11 @@ namespace cs {
 		int current;
 
 		function_builder(const function_builder& other) = delete;
+		function_builder(function_builder&& other) = delete;
 
 		function_builder() {
+			parent = nullptr;
+
 			vars.push_back(var_scope_impl());
 			next_local_id = 0;
 
@@ -253,6 +288,15 @@ namespace cs {
 
 		hexagon::assembly_writer::BasicBlockWriter& get_current() {
 			return *blocks.at(current);
+		}
+
+		function_builder& create_child(const std::string& name) {
+			std::unique_ptr<function_builder> child = std::unique_ptr<function_builder>(new function_builder());
+			child -> parent = this;
+
+			function_builder& ref = *child;
+			children[name] = std::move(child);
+			return ref;
 		}
 
 		void clear_arguments() {
@@ -390,19 +434,37 @@ namespace cs {
 			}
 		}
 
-		hexagon::assembly_writer::FunctionWriter build() {
+		void write_get_from_global_registry() {
 			using namespace hexagon::assembly_writer;
 
-			// ensure argument name mappings exist to feed InitLocal
-			// the correct value
+			// pops: key
+			// pushes: element
+
+			get_current()
+				.Write(BytecodeOp("LoadString", Operand::String("__global_registry")))
+				.Write(BytecodeOp("LoadThis"))
+				.Write(BytecodeOp("GetField"))
+				.Write(BytecodeOp("GetField"));
+		}
+
+		void map_arg_names() {
 			for(auto& name : arg_names) {
 				map_local(name);
+			}
+		}
+
+		hexagon::ort::Function build(hexagon::ort::Runtime& rt, global_registry& registry, bool debug = false) {
+			using namespace hexagon;
+			using namespace hexagon::assembly_writer;
+
+			for(auto& child : children) {
+				hexagon::ort::Function cf = child.second -> build(rt, registry, debug);
+				registry.add(child.first, cf.Pin(rt), true);
 			}
 
 			auto& init_blk = *blocks[0];
 			init_blk.Clear();
 			init_blk.Write(BytecodeOp("InitLocal", Operand::I64(next_local_id)));
-			init_blk.Write(BytecodeOp("Branch", Operand::I64(1)));
 			for(int i = 0; i < arg_names.size(); i++) {
 				init_blk
 					.Write(BytecodeOp("GetArgument", Operand::I64(i)))
@@ -410,6 +472,7 @@ namespace cs {
 						map_local(arg_names[i])
 					)));
 			}
+			init_blk.Write(BytecodeOp("Branch", Operand::I64(1)));
 
 			FunctionWriter fwriter([](
 				std::vector<BasicBlockWriter>& blocks
@@ -451,7 +514,14 @@ namespace cs {
 				fwriter.Write(*blk);
 			}
 
-			return fwriter;
+			if(debug) {
+				std::cerr << fwriter.ToJson() << std::endl;
+			}
+
+			auto target_fn = fwriter.Build();
+			target_fn.EnableOptimization();
+
+			return target_fn;
 		}
 
 		void terminate_current() {

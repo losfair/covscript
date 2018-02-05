@@ -632,12 +632,39 @@ namespace cs {
 			context->instance->storage.add_var(this->mName, var::make_protect<callable>(this->mFunc));
 	}
 
+	void statement_function::generate_code(function_builder& old_builder) {
+		using namespace hexagon::assembly_writer;
+
+		function_builder& new_builder = old_builder.create_child(mName);
+		for(auto& arg : mFunc.mArgs) {
+			new_builder.add_argument(arg);
+		}
+		new_builder.map_arg_names();
+		for(auto& stmt : mFunc.mBody) {
+			stmt -> generate_code(new_builder);
+		}
+		new_builder.get_current().Write(BytecodeOp("LoadNull"));
+		new_builder.get_current().Write(BytecodeOp("Return"));
+
+		old_builder.get_current().Write(BytecodeOp("LoadString", Operand::String(mName)));
+		old_builder.write_get_from_global_registry();
+		old_builder.get_current().Write(BytecodeOp("SetLocal", Operand::I64(old_builder.map_local(mName))));
+	}
+
 	void statement_return::run()
 	{
 		if (context->instance->fcall_stack.empty())
 			throw syntax_error("Return outside function.");
 		context->instance->fcall_stack.top() = context->instance->parse_expr(this->mTree.root());
 		context->instance->return_fcall = true;
+	}
+
+	void statement_return::generate_code(function_builder& builder) {
+		using namespace hexagon::assembly_writer;
+
+		context -> instance -> generate_code_from_expr(mTree.root(), builder);
+		builder.get_current().Write(BytecodeOp("Return"));
+		builder.terminate_current();
 	}
 
 	void statement_try::run()
