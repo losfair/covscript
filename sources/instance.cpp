@@ -156,6 +156,11 @@ namespace cs {
 		auto igniter_fn = igniter.Build();
 		ort::Value igniter_inst = igniter_fn.Pin(hvm_rt);
 
+		if(debug) {
+			ort::ObjectHandle entry_inst_handle = entry_inst.ToObjectHandle(hvm_rt);
+			entry_inst_handle.DebugPrintVirtualFunction();
+		}
+
 		std::vector<ort::Value> igniter_args;
 		igniter_args.push_back(entry_inst);
 		igniter_args.push_back(ort::ObjectProxy(new global_registry(registry)).Pin(hvm_rt));
