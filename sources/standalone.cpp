@@ -81,9 +81,7 @@ void covscript_main(int args_size, const char *args[])
 		cs::instance_type instance(enable_hvm);
 		instance.compile(path);
 
-		if (!compile_only) {
-			instance.run(hvm_debug);
-		}
+		instance.run(hvm_debug, compile_only);
 	}
 	else
 		throw cs::fatal_error("no input file.");

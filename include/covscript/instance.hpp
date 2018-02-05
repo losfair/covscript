@@ -391,11 +391,11 @@ namespace cs {
 		// Wrapped Method
 		void compile(const std::string &);
 
-		void run(bool debug);
+		void run(bool debug, bool compile_only);
 
 		void interpret();
 
-		void run_in_hexagon_vm(bool debug);
+		void run_in_hexagon_vm(bool debug, bool compile_only);
 	};
 
 // Repl

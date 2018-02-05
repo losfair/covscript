@@ -21,7 +21,14 @@ namespace cs_impl {
                 throw cs::internal_error("Conversion not supported (null)");
             }
             case ort::ValueType::Object: {
-                return any(v.ToString(*cs::get_active_runtime()));
+                ort::Runtime& rt = *cs::get_active_runtime();
+
+                if(v.IsString(rt)) {
+                    return any(v.ToString(rt));
+                } else {
+                    ort::ObjectHandle handle = v.ToObjectHandle(*cs::get_active_runtime());
+                    return *dynamic_cast<any *>(handle.ToProxiedObject());
+                }
             }
             default: {
                 throw cs::internal_error("from_hvm_value: Unknown value type");
@@ -31,7 +38,7 @@ namespace cs_impl {
 
     ort::Value any::to_hvm_value() {
         const std::type_info& v_type = type();
-        if(v_type == typeid(int) || v_type == typeid(long) || v_type == typeid(long long)) {
+        if(v_type == typeid(int) || v_type == typeid(long) || v_type == typeid(long long) || v_type == typeid(char)) {
             return ort::Value::FromInt(to_integer());
         } else if(v_type == typeid(float)) {
             return ort::Value::FromFloat(const_val<float>());

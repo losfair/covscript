@@ -43,15 +43,17 @@ namespace cs {
 		return context->file_buff.at(line_num - 1);
 	}
 
-	void instance_type::run(bool debug) {
+	void instance_type::run(bool debug, bool compile_only) {
 		if(enable_hvm) {
-			run_in_hexagon_vm(debug);
+			run_in_hexagon_vm(debug, compile_only);
 		} else {
-			interpret();
+			if(!compile_only) {
+				interpret();
+			}
 		}
 	}
 
-	void instance_type::run_in_hexagon_vm(bool debug) {
+	void instance_type::run_in_hexagon_vm(bool debug, bool compile_only) {
 		using namespace hexagon;
 		using namespace hexagon::assembly_writer;
 
@@ -67,6 +69,8 @@ namespace cs {
 			std::cerr << fwriter.ToJson() << std::endl;
 		}
 
+		if(compile_only) return;
+
 		auto entry_fn = fwriter.Build();
 		entry_fn.EnableOptimization();
 
@@ -77,8 +81,8 @@ namespace cs {
 		std::vector<std::pair<std::string, ort::ObjectProxy>> imports;
 		imports.push_back(std::make_pair(
 			std::string("runtime"),
-			//ort::ObjectProxy(new var(make_shared_extension(runtime_ext)))
-			ort::ObjectProxy(new runtime_ext_hvm_impl())
+			ort::ObjectProxy(new var(make_shared_extension(runtime_ext)))
+			//ort::ObjectProxy(new runtime_ext_hvm_impl())
 		));
 		imports.push_back(std::make_pair(
 			std::string("system"),

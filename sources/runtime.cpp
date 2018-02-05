@@ -397,7 +397,7 @@ namespace cs {
 	static void build_value_load(function_builder& builder, const var& v) {
 		using namespace hexagon::assembly_writer;
 
-		if(v.type() == typeid(int) || v.type() == typeid(long) || v.type() == typeid(long long)) {
+		if(v.type() == typeid(int) || v.type() == typeid(long) || v.type() == typeid(long long) || v.type() == typeid(char)) {
 			auto inner = v.to_integer();
 			builder.get_current().Write(BytecodeOp("LoadInt", Operand::I64(inner)));
 		} else if(v.type() == typeid(float)) {
@@ -694,10 +694,12 @@ namespace cs {
 				case signal_types::fcall_: {
 					token_base *args = it.right().data();
 					int n_args = static_cast<token_arglist *>(args)->get_arglist().size();
-
+					
 					for (auto &tree : static_cast<token_arglist *>(args)->get_arglist()) {
 						generate_code_from_expr(tree.root(), builder);
 					}
+					builder.get_current().Write(BytecodeOp("RotateReverse", Operand::I64(n_args)));
+
 					generate_code_from_expr(it.left(), builder);
 					builder.complete_call(n_args);
 					break;
