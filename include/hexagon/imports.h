@@ -48,6 +48,12 @@ struct sHxOrtObjectProxy {
 
 typedef struct sHxOrtObjectProxy* HxOrtObjectProxy;
 
+struct sHxOrtObjectHandle {
+    char _;
+};
+
+typedef struct sHxOrtObjectHandle* HxOrtObjectHandle;
+
 typedef int (*LocalHxOrtNativeFunction)(HxOrtValue *, HxOrtExecutorImpl, void *);
 typedef void (*LocalHxOrtNativeFunctionDestructor)(void *);
 
@@ -120,13 +126,17 @@ int hexagon_ort_value_read_f64(double *place, const HxOrtValue *v);
 int hexagon_ort_value_read_null(const HxOrtValue *v);
 int hexagon_ort_value_read_bool(int *place, const HxOrtValue *v);
 char hexagon_ort_value_get_type(const HxOrtValue *v);
+HxOrtObjectHandle hexagon_ort_value_to_object_handle(const HxOrtValue *v, HxOrtExecutorImpl e);
 char * hexagon_ort_value_read_string(const HxOrtValue *v, HxOrtExecutorImpl e);
 HxOrtObjectProxy hexagon_ort_object_proxy_create(void *data);
+void * hexagon_ort_object_proxy_get_data(HxOrtObjectProxy p);
 void hexagon_ort_object_proxy_destroy(HxOrtObjectProxy p);
 void hexagon_ort_object_proxy_set_static_field(HxOrtObjectProxy p, const char *k, const HxOrtValue *v);
 void hexagon_ort_object_proxy_set_destructor(HxOrtObjectProxy p, HxOrtObjectProxy_Destructor f);
 void hexagon_ort_object_proxy_set_on_call(HxOrtObjectProxy p, HxOrtObjectProxy_OnCall f);
 void hexagon_ort_object_proxy_set_on_get_field(HxOrtObjectProxy p, HxOrtObjectProxy_OnGetField f);
+void hexagon_ort_object_handle_destroy(HxOrtObjectHandle h);
+HxOrtObjectProxy hexagon_ort_object_handle_to_object_proxy(HxOrtObjectHandle h);
 
 static void __hx_platform_abort(const char *msg) {
 #ifdef HX_USE_PLATFORM_LIB
