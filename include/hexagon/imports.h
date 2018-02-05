@@ -128,6 +128,7 @@ int hexagon_ort_value_read_bool(int *place, const HxOrtValue *v);
 char hexagon_ort_value_get_type(const HxOrtValue *v);
 HxOrtObjectHandle hexagon_ort_value_to_object_handle(const HxOrtValue *v, HxOrtExecutorImpl e);
 char * hexagon_ort_value_read_string(const HxOrtValue *v, HxOrtExecutorImpl e);
+unsigned int hexagon_ort_value_is_string(const HxOrtValue *v, HxOrtExecutorImpl e);
 HxOrtObjectProxy hexagon_ort_object_proxy_create(void *data);
 void * hexagon_ort_object_proxy_get_data(HxOrtObjectProxy p);
 void hexagon_ort_object_proxy_destroy(HxOrtObjectProxy p);

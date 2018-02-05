@@ -116,6 +116,7 @@ public:
         return (bool) ret;
     }
 
+    bool IsString(Runtime& rt) const;
     std::string ToString(Runtime& rt) const;
     ObjectHandle ToObjectHandle(Runtime& rt) const;
 
@@ -440,6 +441,9 @@ std::string Value::ToString(Runtime& rt) const {
     return ret;
 }
 
+bool Value::IsString(Runtime& rt) const {
+    return (bool) hexagon_ort_value_is_string(&res, rt._impl_handle());
+}
 
 ObjectHandle Value::ToObjectHandle(Runtime& rt) const {
     ObjectHandle ret;
