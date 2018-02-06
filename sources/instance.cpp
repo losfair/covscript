@@ -91,6 +91,14 @@ namespace cs {
 			std::string("iostream"),
 			ort::ObjectProxy(new var(make_shared_extension(iostream_ext))).Pin(hvm_rt)
 		));
+		imports.push_back(std::make_pair(
+			std::string("array"),
+			ort::ObjectProxy(new var(make_shared_extension(array_ext))).Pin(hvm_rt)
+		));
+		imports.push_back(std::make_pair(
+			std::string("hash_map"),
+			ort::ObjectProxy(new var(make_shared_extension(hash_map_ext))).Pin(hvm_rt)
+		));
 		for(auto& p : registry.get_escalated()) {
 			imports.push_back(std::make_pair(
 				std::string(p.first),

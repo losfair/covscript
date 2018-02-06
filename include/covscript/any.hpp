@@ -532,6 +532,7 @@ namespace cs_impl {
 			recycle();
 		}
 
+		static any wrap_hvm_value(const ort::Value& v);
 		static any from_hvm_value(const ort::Value& v);
 		ort::Value to_hvm_value();
 		virtual ort::Value Call(const std::vector<ort::Value>& args) override;

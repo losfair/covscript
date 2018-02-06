@@ -20,6 +20,7 @@
 * Github: https://github.com/mikecovlee
 */
 #include <covscript/cni.hpp>
+#include <hexagon/ort.h>
 
 static cs::extension array_ext;
 static cs::extension_t array_ext_shared = cs::make_shared_extension(array_ext);
@@ -48,10 +49,18 @@ namespace cs_impl {
 namespace array_cs_ext {
 	using namespace cs;
 
+	array create() {
+		return array();
+	}
+
 // Element access
 	var at(const array &arr, number posit)
 	{
 		return arr.at(posit);
+	}
+
+	void set(array& arr, number posit, const var& val) {
+		arr.at(posit) = val;
 	}
 
 	var front(const array &arr)
@@ -161,6 +170,9 @@ namespace array_cs_ext {
 
 	void init()
 	{
+		array_ext.add_var("__new__", var::make_protect<callable>(cni(create), true));
+		array_ext.add_var("__get__", var::make_protect<callable>(cni(at), true));
+		array_ext.add_var("__set__", var::make_protect<callable>(cni(set), true));
 		array_ext.add_var("iterator", var::make_protect<extension_t>(array_iterator_ext_shared));
 		array_ext.add_var("at", var::make_protect<callable>(cni(at), true));
 		array_ext.add_var("front", var::make_protect<callable>(cni(front), true));

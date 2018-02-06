@@ -693,6 +693,87 @@ namespace cs {
 			throw syntax_error("Unsupported type(foreach)");
 	}
 
+	void statement_foreach::generate_code(function_builder& builder) {
+		using namespace hexagon::assembly_writer;
+
+		builder_var_scope var_scope(&builder);
+
+		// The block before loop
+		auto& prevBlock = builder.get_current();
+
+		// The initialization step
+		context -> instance -> generate_code_from_expr(mObj.root(), builder);
+		prevBlock
+			.Write(BytecodeOp("LoadString", Operand::String("__iterate__")))
+			.Write(BytecodeOp("LoadNull"))
+			.Write(BytecodeOp("Rotate3"))
+			.Write(BytecodeOp("CallField", Operand::I64(0)))
+			.Write(BytecodeOp("SetLocal", Operand::I64(builder.map_local(mIt))));
+
+		builder.terminate_current(); // branch deferred
+
+		// Contains the code for checking condition
+		auto& checkBlock = builder.get_current();
+		int checkBlockId = builder.current_id();
+
+		checkBlock
+			.Write(BytecodeOp("LoadString", Operand::String("__has_next__")))
+			.Write(BytecodeOp("LoadNull"))
+			.Write(BytecodeOp("GetLocal", Operand::I64(builder.map_local(mIt))))
+			.Write(BytecodeOp("CallField", Operand::I64(0)));
+
+		builder.terminate_current(); // branch deferred
+
+		// Complete the deferred branch
+		prevBlock.Write(BytecodeOp("Branch", Operand::I64(checkBlockId)));
+
+		// We do not know the id of break target block yet
+		// So we use a intermediate block to jump to it
+		auto& breakBlock = builder.get_current();
+		int breakBlockId = builder.current_id();
+		builder.terminate_current(); // branch deferred
+
+		auto& stepBlock = builder.get_current();
+		int stepBlockId = builder.current_id();
+		stepBlock
+			.Write(BytecodeOp("LoadString", Operand::String("__next__")))
+			.Write(BytecodeOp("LoadNull"))
+			.Write(BytecodeOp("GetLocal", Operand::I64(builder.map_local(mIt))))
+			.Write(BytecodeOp("CallField", Operand::I64(0)))
+			.Write(BytecodeOp("Pop"));
+		stepBlock.Write(BytecodeOp("Branch", Operand::I64(checkBlockId)));
+		builder.terminate_current();
+
+		// Now we can build the loop body
+		int bodyBlockBeginId = builder.current_id();
+
+		// set continue & break locations
+		builder.push_loop_control_info(stepBlockId, breakBlockId);
+		for(auto& stmt : mBlock) {
+			stmt -> generate_code(builder);
+		}
+		builder.pop_loop_control_info();
+
+		// Codegen for statements may leave the current basic block
+		auto& bodyBlockEnd = builder.get_current();
+		bodyBlockEnd.Write(BytecodeOp("Branch", Operand::I64(stepBlockId)));
+		builder.terminate_current();
+
+		// We are now in the block after the loop body.
+		int endBlockId = builder.current_id();
+
+		// Complete the deferred branch
+		breakBlock.Write(BytecodeOp("Branch", Operand::I64(endBlockId)));
+
+		// Complete the deferred branch
+		checkBlock.Write(BytecodeOp("CastToBool"))
+			.Write(BytecodeOp(
+				"ConditionalBranch",
+				Operand::I64(bodyBlockBeginId),
+				Operand::I64(endBlockId)
+			));
+	}
+
 	void statement_struct::run()
 	{
 		context->instance->storage.add_struct(this->mName, this->mBuilder);

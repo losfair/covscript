@@ -263,6 +263,7 @@ namespace cs {
 		function_builder *parent;
 		std::unordered_map<std::string, std::unique_ptr<function_builder>> children;
 		std::vector<std::unique_ptr<hexagon::assembly_writer::BasicBlockWriter>> blocks;
+		std::unordered_map<std::string, var> external_vars;
 		std::vector<var_scope_impl> vars;
 		int next_local_id;
 		std::vector<std::string> arg_names;
@@ -460,6 +461,10 @@ namespace cs {
 			for(auto& child : children) {
 				hexagon::ort::Function cf = child.second -> build(rt, registry, debug);
 				registry.add(child.first, cf.Pin(rt), true);
+			}
+
+			for(auto& v : external_vars) {
+				registry.add(v.first, v.second.to_hvm_value(), false);
 			}
 
 			auto& init_blk = *blocks[0];

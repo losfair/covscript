@@ -20,6 +20,7 @@
 * Website: http://covariant.cn/cs
 */
 #include "covscript.cpp"
+#include <hexagon/ort.h>
 
 std::string log_path;
 bool compile_only = false;
@@ -80,6 +81,10 @@ void covscript_main(int args_size, const char *args[])
 		cs::init_ext();
 		cs::instance_type instance(enable_hvm);
 		instance.compile(path);
+
+		if(hvm_debug) {
+			hexagon::EnableDebug();
+		}
 
 		instance.run(hvm_debug, compile_only);
 	}

@@ -22,6 +22,7 @@
 #include <mozart/traits.hpp>
 #include <mozart/bind.hpp>
 #include <covscript/core.hpp>
+#include <hexagon/ort.h>
 
 namespace cs {
 	class arglist final {
@@ -81,6 +82,18 @@ namespace cs {
 		static inline const T &get_val(var &val)
 		{
 			return val.const_val<T>();
+		}
+	};
+
+	// Only const conversion is implemented because making ort::Value
+	// mutable breaks everything
+	template<> struct convert<const hexagon::ort::Value&> {
+		static inline const hexagon::ort::Value& get_val(var &val) {
+			if(val.type() == typeid(hexagon::ort::Value)) {
+				return val.const_val<hexagon::ort::Value>();
+			} else {
+				throw syntax_error("Not an HVM value");
+			}
 		}
 	};
 

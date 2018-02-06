@@ -6,6 +6,10 @@
 #include <iostream>
 
 namespace cs_impl {
+    any any::wrap_hvm_value(const ort::Value& v) {
+        return any::make<ort::Value>(v);
+    }
+
     any any::from_hvm_value(const ort::Value& v) {
         switch(v.Type()) {
             case ort::ValueType::Bool: {
@@ -38,7 +42,9 @@ namespace cs_impl {
 
     ort::Value any::to_hvm_value() {
         const std::type_info& v_type = type();
-        if(v_type == typeid(int) || v_type == typeid(long) || v_type == typeid(long long) || v_type == typeid(char)) {
+        if(v_type == typeid(ort::Value)) {
+            return const_val<ort::Value>();
+        } else if(v_type == typeid(int) || v_type == typeid(long) || v_type == typeid(long long) || v_type == typeid(char)) {
             return ort::Value::FromInt(to_integer());
         } else if(v_type == typeid(float)) {
             return ort::Value::FromFloat(const_val<float>());

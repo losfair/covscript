@@ -33,6 +33,10 @@ namespace cs_impl {
 namespace hash_map_cs_ext {
 	using namespace cs;
 
+	hash_map create() {
+		return hash_map();
+	}
+
 // Capacity
 	bool empty(const hash_map &map)
 	{
@@ -76,6 +80,9 @@ namespace hash_map_cs_ext {
 
 	void init()
 	{
+		hash_map_ext.add_var("__new__", var::make_protect<callable>(cni(create), true));
+		hash_map_ext.add_var("__get__", var::make_protect<callable>(cni(at), true));
+		hash_map_ext.add_var("__set__", var::make_protect<callable>(cni(insert), true));
 		hash_map_ext.add_var("empty", var::make_protect<callable>(cni(empty), true));
 		hash_map_ext.add_var("size", var::make_protect<callable>(cni(size), true));
 		hash_map_ext.add_var("clear", var::make_protect<callable>(cni(clear), true));

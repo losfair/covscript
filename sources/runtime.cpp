@@ -410,26 +410,15 @@ namespace cs {
 			auto inner = v.to_string();
 			builder.get_current().Write(BytecodeOp("LoadString", Operand::String(inner)));
 		} else if(v.type() == typeid(array)) {
-			builder.get_current()
-				.Write(BytecodeOp("LoadString", Operand::String("new_array")))
-				.Write(BytecodeOp("LoadNull"))
-				.Write(BytecodeOp("LoadString", Operand::String("__builtin")))
-				.Write(BytecodeOp("GetStatic"))
-				.Write(BytecodeOp("CallField", Operand::I64(0)));
-
+			array arr;
 			for (const var& elem : v.const_val<array>()) {
-				builder.get_current()
-					.Write(BytecodeOp("Dup"));
-				build_value_load(builder, elem);
-				builder.get_current()
-					.Write(BytecodeOp("Rotate2"))
-					.Write(BytecodeOp("LoadString", Operand::String("push")))
-					.Write(BytecodeOp("Rotate2"))
-					.Write(BytecodeOp("LoadNull"))
-					.Write(BytecodeOp("Rotate2"))
-					.Write(BytecodeOp("CallField", Operand::I64(1)))
-					.Write(BytecodeOp("Pop"));
+				arr.push_back(elem);
 			}
+			std::string v_id = cs_impl::unique_id::random_string(16);
+
+			builder.external_vars.insert(std::make_pair(v_id, var::make<array>(std::move(arr))));
+			builder.get_current().Write(BytecodeOp("LoadString", Operand::String(v_id)));
+			builder.write_get_from_global_registry();
 		} else if(v.type() == typeid(pointer)) {
 			pointer p = v.const_val<pointer>();
 			if(p.data.usable()) {
@@ -484,10 +473,11 @@ namespace cs {
 			return;
 		case token_types::array:
 			builder.get_current()
-				.Write(BytecodeOp("LoadString", Operand::String("new_array")))
+				.Write(BytecodeOp("LoadString", Operand::String("__new__")))
 				.Write(BytecodeOp("LoadNull"))
-				.Write(BytecodeOp("LoadString", Operand::String("__builtin")))
-				.Write(BytecodeOp("GetStatic"))
+				.Write(BytecodeOp("LoadString", Operand::String("array")))
+				.Write(BytecodeOp("LoadThis"))
+				.Write(BytecodeOp("GetField"))
 				.Write(BytecodeOp("CallField", Operand::I64(0)));
 
 			for (auto &tree:static_cast<token_array *>(token)->get_array()) {
@@ -495,7 +485,7 @@ namespace cs {
 				generate_code_from_expr(tree.root(), builder);
 				builder.get_current()
 					.Write(BytecodeOp("Rotate2"))
-					.Write(BytecodeOp("LoadString", Operand::String("push")))
+					.Write(BytecodeOp("LoadString", Operand::String("push_back")))
 					.Write(BytecodeOp("Rotate2"))
 					.Write(BytecodeOp("LoadNull"))
 					.Write(BytecodeOp("Rotate2"))
@@ -873,6 +863,16 @@ namespace cs {
 
 					builder.get_current().Write(BytecodeOp("LoadString", Operand::String(lambda_name)));
 					builder.write_get_from_global_registry();
+
+					break;
+				}
+				case signal_types::new_: {
+					builder.get_current()
+						.Write(BytecodeOp("LoadString", Operand::String("__new__")))
+						.Write(BytecodeOp("LoadNull"));
+
+					generate_code_from_expr(it.right(), builder);
+					builder.get_current().Write(BytecodeOp("CallField", Operand::I64(0)));
 
 					break;
 				}
