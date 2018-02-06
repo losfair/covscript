@@ -27,6 +27,7 @@ bool compile_only = false;
 bool wait_before_exit = false;
 bool enable_hvm = false;
 bool hvm_debug = false;
+bool hvm_optimize = false;
 
 int covscript_args(int args_size, const char *args[])
 {
@@ -55,6 +56,8 @@ int covscript_args(int args_size, const char *args[])
 				enable_hvm = true;
 			else if (std::strcmp(args[index], "--hvm-debug") == 0 && !hvm_debug)
 				hvm_debug = true;
+			else if (std::strcmp(args[index], "--hvm-optimize") == 0 && !hvm_optimize)
+				hvm_optimize = true;
 			else
 				throw cs::fatal_error("argument syntax error.");
 		}
@@ -80,6 +83,8 @@ void covscript_main(int args_size, const char *args[])
 		system_ext.add_var("args", cs::var::make_constant<cs::array>(arg));
 		cs::init_ext();
 		cs::instance_type instance(enable_hvm);
+		instance.enable_hvm_optimization = hvm_optimize;
+
 		instance.compile(path);
 
 		if(hvm_debug) {

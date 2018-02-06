@@ -271,11 +271,13 @@ namespace cs {
 		context_t context;
 		ort::Runtime hvm_rt;
 		bool enable_hvm;
+		bool enable_hvm_optimization;
 
 		// Constructor and destructor
 		instance_type(bool _enable_hvm = false) : context(std::make_shared<context_type>(this))
 		{
 			enable_hvm = _enable_hvm;
+			enable_hvm_optimization = false;
 
 			init_grammar();
 			if(!enable_hvm) {

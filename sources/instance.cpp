@@ -67,7 +67,7 @@ namespace cs {
 		}
 		builder.get_current().Write(BytecodeOp("LoadNull"));
 		builder.get_current().Write(BytecodeOp("Return"));
-		auto entry_fn = builder.build(hvm_rt, registry, debug);
+		auto entry_fn = builder.build(hvm_rt, registry, debug, enable_hvm_optimization);
 
 		if(compile_only) return;
 
@@ -77,7 +77,7 @@ namespace cs {
 		imports.push_back(std::make_pair(
 			std::string("runtime"),
 			ort::ObjectProxy(new var(make_shared_extension(runtime_ext))).Pin(hvm_rt)
-			//ort::ObjectProxy(new runtime_ext_hvm_impl())
+			//ort::ObjectProxy(new runtime_ext_hvm_impl()).Pin(hvm_rt)
 		));
 		imports.push_back(std::make_pair(
 			std::string("system"),

@@ -161,6 +161,17 @@ public:
 		proxy.SetStaticField("time", ort::Function::LoadNative([]() {
 			return ort::Value::FromFloat(runtime_cs_ext::time());
 		}).Pin(*cs::get_active_runtime()));
+		proxy.SetStaticField("std_version", ort::Value::FromInt((long long) cs::std_version));
+		proxy.SetStaticField("get_import_path", ort::Function::LoadNative([]() {
+			return ort::Value::FromString(
+				runtime_cs_ext::get_import_path(),
+				*cs::get_active_runtime()
+			);
+		}).Pin(*cs::get_active_runtime()));
+		proxy.SetStaticField("info", ort::Function::LoadNative([]() {
+			runtime_cs_ext::info();
+			return ort::Value::Null();
+		}).Pin(*cs::get_active_runtime()));
 	}
 
 	virtual ort::Value GetField(const char *name) {

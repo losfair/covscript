@@ -454,12 +454,12 @@ namespace cs {
 			}
 		}
 
-		hexagon::ort::Function build(hexagon::ort::Runtime& rt, global_registry& registry, bool debug = false) {
+		hexagon::ort::Function build(hexagon::ort::Runtime& rt, global_registry& registry, bool debug, bool optimize) {
 			using namespace hexagon;
 			using namespace hexagon::assembly_writer;
 
 			for(auto& child : children) {
-				hexagon::ort::Function cf = child.second -> build(rt, registry, debug);
+				hexagon::ort::Function cf = child.second -> build(rt, registry, debug, optimize);
 				registry.add(child.first, cf.Pin(rt), true);
 			}
 
@@ -524,7 +524,9 @@ namespace cs {
 			}
 
 			auto target_fn = fwriter.Build();
-			target_fn.EnableOptimization();
+			if(optimize) {
+				target_fn.EnableOptimization();
+			}
 
 			return target_fn;
 		}
