@@ -19,6 +19,7 @@
 * Github: https://github.com/mikecovlee
 */
 #include <covscript/runtime.hpp>
+#include <covscript/unique_id.hpp>
 #include <string>
 #include <vector>
 
@@ -439,6 +440,9 @@ namespace cs {
 		} else if(v.type() == typeid(cs::boolean)) {
 			bool b = v.const_val<cs::boolean>();
 			builder.get_current().Write(BytecodeOp("LoadBool", Operand::Bool(b)));
+		} else if(v.type() == typeid(cs::callable)) {
+			const cs::callable& callable = v.const_val<cs::callable>();
+			throw internal_error("callable");
 		} else {
 			throw internal_error(std::string("Unsupported value type: ") + v.get_type_name());
 		}
@@ -836,6 +840,41 @@ namespace cs {
 
 					generate_code_from_expr(it.left(), builder);
 					builder.complete_call(n_args);
+					break;
+				}
+				case signal_types::lambda_: {
+					token_base *lptr = it.left().data();
+					token_base *rptr = it.right().data();
+
+					std::vector<std::string> args;
+					for (auto &it:dynamic_cast<token_arglist *>(lptr)->get_arglist()) {
+						if (it.root().data() == nullptr)
+							throw internal_error("Null pointer accessed.");
+						if (it.root().data()->get_type() != token_types::id)
+							throw syntax_error("Wrong grammar for function definition.");
+						const std::string &str = dynamic_cast<token_id *>(it.root().data())->get_id();
+						for (auto &it:args)
+							if (it == str)
+								throw syntax_error("Redefinition of function argument.");
+						args.push_back(str);
+					}
+
+					const std::string lambda_name = cs_impl::unique_id::random_string(16);
+
+					{
+						function_builder& lambda_builder = builder.create_child(lambda_name);
+						for(auto& arg : args) {
+							lambda_builder.add_argument(arg);
+						}
+						lambda_builder.map_arg_names();
+
+						generate_code_from_expr(it.right(), lambda_builder);
+						lambda_builder.get_current().Write(BytecodeOp("Return"));
+					}
+
+					builder.get_current().Write(BytecodeOp("LoadString", Operand::String(lambda_name)));
+					builder.write_get_from_global_registry();
+
 					break;
 				}
 				default:
