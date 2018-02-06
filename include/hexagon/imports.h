@@ -61,6 +61,8 @@ typedef void (*HxOrtObjectProxy_Destructor)(void *data);
 typedef int (*HxOrtObjectProxy_OnCall)(HxOrtValue *place, void *data, unsigned int n_args, const HxOrtValue *args);
 typedef int (*HxOrtObjectProxy_OnGetField)(HxOrtValue *place, void *data, const char *field_name);
 
+void hexagon_enable_debug();
+
 unsigned int hexagon_ort_get_value_size();
 
 void hexagon_glue_destroy_cstring(char *s);

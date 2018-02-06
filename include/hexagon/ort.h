@@ -9,6 +9,11 @@
 #include <string>
 
 namespace hexagon {
+
+void EnableDebug() {
+    hexagon_enable_debug();
+}
+
 namespace ort {
 
 class Runtime;
