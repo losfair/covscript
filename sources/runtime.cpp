@@ -24,8 +24,7 @@
 #include <vector>
 
 namespace cs {
-	// TODO: Make this thread-local
-	static std::vector<hexagon::ort::Runtime *> active_runtimes;
+	thread_local static std::vector<hexagon::ort::Runtime *> active_runtimes;
 
 	hvm_runtime_guard::hvm_runtime_guard(hexagon::ort::Runtime *rt) {
 		active_runtimes.push_back(rt);
