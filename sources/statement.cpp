@@ -562,6 +562,81 @@ namespace cs {
 		}
 	}
 
+	void statement_for::generate_code(function_builder& builder) {
+		using namespace hexagon::assembly_writer;
+
+		builder_var_scope var_scope(&builder);
+
+		// The block before loop
+		auto& prevBlock = builder.get_current();
+
+		// The initialization step
+		context -> instance -> generate_code_from_expr(mDvp.expr.root(), builder);
+		prevBlock.Write(BytecodeOp("SetLocal", Operand::I64(builder.map_local(mDvp.id))));
+
+		builder.terminate_current(); // branch deferred
+
+		// Contains the code for checking condition
+		auto& checkBlock = builder.get_current();
+		int checkBlockId = builder.current_id();
+
+		// Codegen for expressions cannot leave the current basic block
+		context -> instance -> generate_code_from_expr(mEnd.root(), builder);
+		checkBlock
+			.Write(BytecodeOp("GetLocal", Operand::I64(builder.map_local(mDvp.id))))
+			.Write(BytecodeOp("TestLe"));
+
+		builder.terminate_current(); // branch deferred
+
+		// Complete the deferred branch
+		prevBlock.Write(BytecodeOp("Branch", Operand::I64(checkBlockId)));
+
+		// We do not know the id of break target block yet
+		// So we use a intermediate block to jump to it
+		auto& breakBlock = builder.get_current();
+		int breakBlockId = builder.current_id();
+		builder.terminate_current(); // branch deferred
+
+		auto& stepBlock = builder.get_current();
+		int stepBlockId = builder.current_id();
+		context -> instance -> generate_code_from_expr(mStep.root(), builder);
+		stepBlock
+			.Write(BytecodeOp("GetLocal", Operand::I64(builder.map_local(mDvp.id))))
+			.Write(BytecodeOp("Add"))
+			.Write(BytecodeOp("SetLocal", Operand::I64(builder.map_local(mDvp.id))));
+		stepBlock.Write(BytecodeOp("Branch", Operand::I64(checkBlockId)));
+		builder.terminate_current();
+
+		// Now we can build the loop body
+		int bodyBlockBeginId = builder.current_id();
+
+		// set continue & break locations
+		builder.push_loop_control_info(stepBlockId, breakBlockId);
+		for(auto& stmt : mBlock) {
+			stmt -> generate_code(builder);
+		}
+		builder.pop_loop_control_info();
+
+		// Codegen for statements may leave the current basic block
+		auto& bodyBlockEnd = builder.get_current();
+		bodyBlockEnd.Write(BytecodeOp("Branch", Operand::I64(stepBlockId)));
+		builder.terminate_current();
+
+		// We are now in the block after the loop body.
+		int endBlockId = builder.current_id();
+
+		// Complete the deferred branch
+		breakBlock.Write(BytecodeOp("Branch", Operand::I64(endBlockId)));
+
+		// Complete the deferred branch
+		checkBlock.Write(BytecodeOp("CastToBool"))
+			.Write(BytecodeOp(
+				"ConditionalBranch",
+				Operand::I64(bodyBlockBeginId),
+				Operand::I64(endBlockId)
+			));
+	}
+
 	template<typename T, typename X>
 	void foreach_helper(context_t context, const string &iterator, const var &obj, std::deque<statement_base *> &body)
 	{

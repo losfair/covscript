@@ -360,6 +360,8 @@ namespace cs {
 		}
 
 		virtual void run() override;
+		
+		virtual void generate_code(function_builder& builder) override;
 	};
 
 	class statement_foreach final : public statement_base {
