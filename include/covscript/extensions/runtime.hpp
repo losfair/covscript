@@ -172,6 +172,7 @@ public:
 			runtime_cs_ext::info();
 			return ort::Value::Null();
 		}).Pin(*cs::get_active_runtime()));
+		proxy.Freeze();
 	}
 
 	virtual ort::Value GetField(const char *name) {

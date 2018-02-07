@@ -25,6 +25,7 @@
 #include <unordered_map>
 #include <string>
 #include <iostream>
+#include <stdexcept>
 #include <hexagon/ort.h>
 #include <hexagon/ort_assembly_writer.h>
 
@@ -235,18 +236,10 @@ namespace cs {
 
 		void add(const std::string& k, const hexagon::ort::Value& v, bool escalated = false) {
 			globals.insert(std::make_pair(k, std::make_pair(v, escalated)));
-		}
-
-		std::unordered_map<std::string, hexagon::ort::Value> get_escalated() {
-			std::unordered_map<std::string, hexagon::ort::Value> ret;
-
-			for(auto& p : globals) {
-				if(p.second.second) {
-					ret.insert(std::make_pair(p.first, p.second.first));
-				}
+			if(IsInitialized()) {
+				SetStaticField(k, v);
+				AddConstField(k);
 			}
-
-			return ret;
 		}
 
 		virtual void Init(hexagon::ort::ObjectProxy& proxy) override {
@@ -254,6 +247,7 @@ namespace cs {
 
 			for(auto& p : globals) {
 				proxy.SetStaticField(p.first, p.second.first);
+				proxy.AddConstField(p.first);
 			}
 		}
 	};
@@ -442,9 +436,7 @@ namespace cs {
 			// pushes: element
 
 			get_current()
-				.Write(BytecodeOp("LoadString", Operand::String("__global_registry")))
 				.Write(BytecodeOp("LoadThis"))
-				.Write(BytecodeOp("GetField"))
 				.Write(BytecodeOp("GetField"));
 		}
 
@@ -454,12 +446,12 @@ namespace cs {
 			}
 		}
 
-		hexagon::ort::Function build(hexagon::ort::Runtime& rt, global_registry& registry, bool debug, bool optimize) {
+		hexagon::ort::Function build(hexagon::ort::Runtime& rt, global_registry& registry, const hexagon::ort::Value& registry_proxy_inst, bool debug, bool optimize) {
 			using namespace hexagon;
 			using namespace hexagon::assembly_writer;
 
 			for(auto& child : children) {
-				hexagon::ort::Function cf = child.second -> build(rt, registry, debug, optimize);
+				hexagon::ort::Function cf = child.second -> build(rt, registry, registry_proxy_inst, debug, optimize);
 				registry.add(child.first, cf.Pin(rt), true);
 			}
 
@@ -527,6 +519,8 @@ namespace cs {
 			if(optimize) {
 				target_fn.EnableOptimization();
 			}
+
+			target_fn.BindThis(registry_proxy_inst);
 
 			return target_fn;
 		}
