@@ -7,6 +7,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <iostream>
 
 namespace hexagon {
 
@@ -174,7 +175,18 @@ public:
     }
 
     void EnableOptimization() {
+        if(res == nullptr) {
+            throw std::runtime_error("Use of dropped function");
+        }
+
         hexagon_ort_function_enable_optimization(res);
+    }
+
+    void BindThis(const Value& v) {
+        if(res == nullptr) {
+            throw std::runtime_error("Use of dropped function");
+        }
+        hexagon_ort_function_bind_this(res, &v.Extract());
     }
 
     Value Pin(Runtime& rt);
@@ -309,8 +321,45 @@ public:
 class ObjectProxy;
 
 class ProxiedObject {
+private:
+    HxOrtObjectProxy proxy = nullptr;
+
+protected:
+    bool IsInitialized() {
+        if(proxy) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    void Freeze() {
+        if(!proxy) {
+            throw std::logic_error("Attempting to use an object proxy after drop");
+        }
+        hexagon_ort_object_proxy_freeze(proxy);
+    }
+
+    void AddConstField(const std::string& name) {
+        if(!proxy) {
+            throw std::logic_error("Attempting to use an object proxy after drop");
+        }
+        hexagon_ort_object_proxy_add_const_field(proxy, name.c_str());
+    }
+
+    void SetStaticField(const std::string& k, const Value& v) {
+        if(!proxy) {
+            throw std::logic_error("Attempting to use an object proxy after drop");
+        }
+
+        hexagon_ort_object_proxy_set_static_field(proxy, k.c_str(), &v.Extract());
+    }
+
 public:
     virtual ~ProxiedObject() {};
+
+    void __HxOnAttachToProxy(HxOrtObjectProxy _proxy) {
+        proxy = _proxy;
+    }
 
     virtual void Init(ObjectProxy& proxy) {
 
@@ -360,6 +409,9 @@ public:
                 Value ret = proxied -> Call(target_args);
                 *place = ret.Extract();
                 return 0;
+            } catch(const std::exception& e) {
+                std::cerr << e.what() << std::endl;
+                return 1;
             } catch(...) {
                 return 1;
             }
@@ -374,10 +426,14 @@ public:
                 Value ret = proxied -> GetField(field_name);
                 *place = ret.Extract();
                 return 0;
+            } catch(const std::exception& e) {
+                std::cerr << e.what() << std::endl;
+                return 1;
             } catch(...) {
                 return 1;
             }
         });
+        proxied -> __HxOnAttachToProxy(proxy);
         proxied -> Init(*this);
     }
 
@@ -402,6 +458,20 @@ public:
         );
         proxy = nullptr;
         return Value(ret);
+    }
+
+    void Freeze() {
+        if(!proxy) {
+            throw std::logic_error("Attempting to use an object proxy after drop");
+        }
+        hexagon_ort_object_proxy_freeze(proxy);
+    }
+
+    void AddConstField(const std::string& name) {
+        if(!proxy) {
+            throw std::logic_error("Attempting to use an object proxy after drop");
+        }
+        hexagon_ort_object_proxy_add_const_field(proxy, name.c_str());
     }
 
     ~ObjectProxy() {

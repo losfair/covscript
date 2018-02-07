@@ -85,6 +85,10 @@ void hexagon_ort_function_destroy(
 void hexagon_ort_function_enable_optimization(
     HxOrtFunction f
 );
+int hexagon_ort_function_bind_this(
+    HxOrtFunction f,
+    const HxOrtValue *v
+);
 HxOrtFunction hexagon_ort_function_load_native(
     LocalHxOrtNativeFunction cb,
     LocalHxOrtNativeFunctionDestructor dtor, // nullable
@@ -144,6 +148,8 @@ void hexagon_ort_object_proxy_set_static_field(HxOrtObjectProxy p, const char *k
 void hexagon_ort_object_proxy_set_destructor(HxOrtObjectProxy p, HxOrtObjectProxy_Destructor f);
 void hexagon_ort_object_proxy_set_on_call(HxOrtObjectProxy p, HxOrtObjectProxy_OnCall f);
 void hexagon_ort_object_proxy_set_on_get_field(HxOrtObjectProxy p, HxOrtObjectProxy_OnGetField f);
+void hexagon_ort_object_proxy_freeze(HxOrtObjectProxy p);
+void hexagon_ort_object_proxy_add_const_field(HxOrtObjectProxy p, const char *name);
 void hexagon_ort_object_handle_destroy(HxOrtObjectHandle h);
 HxOrtObjectProxy hexagon_ort_object_handle_to_object_proxy(HxOrtObjectHandle h);
 HxOrtFunction hexagon_ort_object_handle_to_function(HxOrtObjectHandle h);
