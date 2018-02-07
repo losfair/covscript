@@ -1,7 +1,7 @@
 var n = 100000
 var a = {}
-while a.len() < n
-    a.push(a.len())
+while a.size() < n
+    a.push_back(a.size())
 end
 
 var i = 0
