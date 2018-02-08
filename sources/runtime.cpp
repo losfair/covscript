@@ -657,6 +657,12 @@ namespace cs {
 					builder.get_current().Write(BytecodeOp("GetLocal", Operand::I64(result_id)));
 					break;
 				}
+				case signal_types::minus_: {
+					generate_code_from_expr(it.right(), builder);
+					builder.get_current().Write(BytecodeOp("LoadInt", Operand::I64(0)));
+					builder.get_current().Write(BytecodeOp("Sub"));
+					break;
+				}
 				case signal_types::inc_: {
 					bool is_right = false;
 
