@@ -113,6 +113,34 @@ public:
         return ret;
     }
 
+    double ToF64() const {
+        switch(Type()) {
+            case ValueType::Float: {
+                return ExtractF64();
+            }
+            case ValueType::Int: {
+                return (double) ExtractI64();
+            }
+            default: {
+                throw std::runtime_error("Cannot convert to f64");
+            }
+        }
+    }
+
+    long long ToI64() const {
+        switch(Type()) {
+            case ValueType::Float: {
+                return (long long) ExtractF64();
+            }
+            case ValueType::Int: {
+                return ExtractI64();
+            }
+            default: {
+                throw std::runtime_error("Cannot convert to i64");
+            }
+        }
+    }
+
     bool ExtractBool() const {
         int ret;
         int err = hexagon_ort_value_read_bool(&ret, &res);
@@ -289,6 +317,25 @@ public:
 
     void SetStackLimit(unsigned int limit) {
         hexagon_ort_executor_impl_set_stack_limit(executor, limit);
+    }
+
+    Value GetArgument(unsigned int id) {
+        HxOrtValue ret_place;
+
+        int err = hexagon_ort_executor_impl_get_argument(
+            &ret_place,
+            executor,
+            id
+        );
+        if(err != 0) {
+            throw std::runtime_error("Argument index out of bound");
+        }
+
+        return Value(ret_place);
+    }
+
+    unsigned int GetNArguments() {
+        return hexagon_ort_executor_impl_get_n_arguments(executor);
     }
 
     Value Invoke(Value obj, const std::vector<Value>& params) {

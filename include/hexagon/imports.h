@@ -79,6 +79,14 @@ int hexagon_ort_executor_impl_run_callable(
     HxOrtExecutorImpl e,
     const char *key
 );
+int hexagon_ort_executor_impl_get_argument(
+    HxOrtValue *place,
+    HxOrtExecutorImpl e,
+    unsigned int id
+);
+unsigned int hexagon_ort_executor_impl_get_n_arguments(
+    HxOrtExecutorImpl e
+);
 void hexagon_ort_function_destroy(
     HxOrtFunction f
 );
