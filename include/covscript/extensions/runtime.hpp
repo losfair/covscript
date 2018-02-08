@@ -158,20 +158,53 @@ public:
 	}
 
 	virtual void Init(ort::ObjectProxy& proxy) {
-		proxy.SetStaticField("time", ort::Function::LoadNative([]() {
+		ort::Runtime& rt = *cs::get_active_runtime();
+
+		proxy.SetStaticField("time", ort::Function::LoadNative([&rt]() {
 			return ort::Value::FromFloat(runtime_cs_ext::time());
-		}).Pin(*cs::get_active_runtime()));
+		}).Pin(rt));
 		proxy.SetStaticField("std_version", ort::Value::FromInt((long long) cs::std_version));
-		proxy.SetStaticField("get_import_path", ort::Function::LoadNative([]() {
+		proxy.SetStaticField("get_import_path", ort::Function::LoadNative([&rt]() {
 			return ort::Value::FromString(
 				runtime_cs_ext::get_import_path(),
-				*cs::get_active_runtime()
+				rt
 			);
-		}).Pin(*cs::get_active_runtime()));
-		proxy.SetStaticField("info", ort::Function::LoadNative([]() {
+		}).Pin(rt));
+		proxy.SetStaticField("info", ort::Function::LoadNative([&rt]() {
 			runtime_cs_ext::info();
 			return ort::Value::Null();
-		}).Pin(*cs::get_active_runtime()));
+		}).Pin(rt));
+		proxy.SetStaticField("delay", ort::Function::LoadNative([&rt]() {
+			cs::number t = rt.GetArgument(0).ToF64();
+			runtime_cs_ext::delay(t);
+			return ort::Value::Null();
+		}).Pin(rt));
+		proxy.SetStaticField("rand", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(
+				runtime_cs_ext::rand(
+					rt.GetArgument(0).ToF64(),
+					rt.GetArgument(1).ToF64()
+				)
+			);
+		}).Pin(rt));
+		proxy.SetStaticField("randint", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(
+				runtime_cs_ext::randint(
+					rt.GetArgument(0).ToF64(),
+					rt.GetArgument(1).ToF64()
+				)
+			);
+		}).Pin(rt));
+		proxy.SetStaticField("exception", ort::Function::LoadNative([&rt]() {
+			return runtime_cs_ext::exception(
+				rt.GetArgument(0).ToString(rt)
+			).to_hvm_value();
+		}).Pin(rt));
+		proxy.SetStaticField("hash", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromInt(runtime_cs_ext::hash(
+				cs::var::from_hvm_value(rt.GetArgument(0))
+			));
+		}).Pin(rt));
 		proxy.Freeze();
 	}
 

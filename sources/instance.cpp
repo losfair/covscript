@@ -133,7 +133,8 @@ namespace cs {
 		);
 		registry -> add(
 			std::string("math"),
-			ort::ObjectProxy(new var(make_shared_extension(math_ext))).Pin(hvm_rt)
+			//ort::ObjectProxy(new var(make_shared_extension(math_ext))).Pin(hvm_rt)
+			ort::ObjectProxy(new math_ext_hvm_impl()).Pin(hvm_rt)
 		);
 		registry -> add(
 			std::string("iostream"),

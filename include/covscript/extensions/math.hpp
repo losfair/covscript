@@ -20,6 +20,7 @@
 * Github: https://github.com/mikecovlee
 */
 #include <covscript/cni.hpp>
+#include <hexagon/ort.h>
 #include <algorithm>
 
 static cs::extension math_ext;
@@ -122,3 +123,97 @@ namespace math_cs_ext {
 		math_ext.add_var("max", var::make_protect<callable>(cni(max), true));
 	}
 }
+
+class math_ext_hvm_impl : public ort::ProxiedObject {
+public:
+	math_ext_hvm_impl() {
+	}
+
+	virtual void Init(ort::ObjectProxy& proxy) {
+		ort::Runtime& rt = *cs::get_active_runtime();
+
+		proxy.SetStaticField("pi", ort::Value::FromFloat(3.1415926535));
+		proxy.SetStaticField("e", ort::Value::FromFloat(2.7182818284));
+		proxy.SetStaticField("abs", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(math_cs_ext::abs(
+				rt.GetArgument(0).ToF64()
+			));
+		}).Pin(rt));
+		proxy.SetStaticField("ln", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(math_cs_ext::ln(
+				rt.GetArgument(0).ToF64()
+			));
+		}).Pin(rt));
+		proxy.SetStaticField("log10", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(math_cs_ext::log10(
+				rt.GetArgument(0).ToF64()
+			));
+		}).Pin(rt));
+		proxy.SetStaticField("log", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(math_cs_ext::log(
+				rt.GetArgument(0).ToF64(),
+				rt.GetArgument(1).ToF64()
+			));
+		}).Pin(rt));
+		proxy.SetStaticField("sin", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(math_cs_ext::sin(
+				rt.GetArgument(0).ToF64()
+			));
+		}).Pin(rt));
+		proxy.SetStaticField("cos", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(math_cs_ext::cos(
+				rt.GetArgument(0).ToF64()
+			));
+		}).Pin(rt));
+		proxy.SetStaticField("tan", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(math_cs_ext::tan(
+				rt.GetArgument(0).ToF64()
+			));
+		}).Pin(rt));
+		proxy.SetStaticField("asin", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(math_cs_ext::asin(
+				rt.GetArgument(0).ToF64()
+			));
+		}).Pin(rt));
+		proxy.SetStaticField("acos", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(math_cs_ext::acos(
+				rt.GetArgument(0).ToF64()
+			));
+		}).Pin(rt));
+		proxy.SetStaticField("atan", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(math_cs_ext::atan(
+				rt.GetArgument(0).ToF64()
+			));
+		}).Pin(rt));
+		proxy.SetStaticField("sqrt", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(math_cs_ext::sqrt(
+				rt.GetArgument(0).ToF64()
+			));
+		}).Pin(rt));
+		proxy.SetStaticField("root", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(math_cs_ext::root(
+				rt.GetArgument(0).ToF64(),
+				rt.GetArgument(1).ToF64()
+			));
+		}).Pin(rt));
+		proxy.SetStaticField("pow", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(math_cs_ext::pow(
+				rt.GetArgument(0).ToF64(),
+				rt.GetArgument(1).ToF64()
+			));
+		}).Pin(rt));
+		proxy.SetStaticField("min", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(math_cs_ext::min(
+				rt.GetArgument(0).ToF64(),
+				rt.GetArgument(1).ToF64()
+			));
+		}).Pin(rt));
+		proxy.SetStaticField("max", ort::Function::LoadNative([&rt]() {
+			return ort::Value::FromFloat(math_cs_ext::max(
+				rt.GetArgument(0).ToF64(),
+				rt.GetArgument(1).ToF64()
+			));
+		}).Pin(rt));
+		proxy.Freeze();
+	}
+};
